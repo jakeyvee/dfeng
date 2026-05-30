@@ -1,0 +1,156 @@
+# =============================================================================
+# Dongfeng Experience Community — Telegram supergroup setup notes (TEMPLATE)
+# Linear ticket: VOL-196
+# =============================================================================
+# This is a FILL-IN-THE-BLANKS template. After the operator provisions the
+# supergroup by following docs/telegram-setup.md, copy this file to
+#     config/group-setup.yaml        (gitignored — see note at bottom)
+# and replace every <PLACEHOLDER> with the real value captured during setup.
+#
+# The values recorded here are the source of truth the operator then transcribes
+# into the bot's `.env` (see the `env:` key next to each item — that is the
+# matching variable in .env.example / src/dfeng_bot/config.py).
+#
+# NOTE ON TOPIC NAMING: the six topics in VOL-196 have community-facing display
+# names ("BOX Owners Lounge", etc.). The bot's Config (src/dfeng_bot/config.py)
+# predates these names and exposes six generic env slots
+# (DFENG_TOPIC_WELCOME / GENERAL / QUALIFICATION / SUPPORT / EVENTS /
+# ANNOUNCEMENTS). The `env:` field below pins each display-name topic to the
+# env slot the bot will use for it. Do NOT rename the env keys — only the
+# thread_id values change. The mapping is intentional and documented in
+# docs/telegram-setup.md ("Topic → config mapping").
+# -----------------------------------------------------------------------------
+
+schema_version: 1
+ticket: VOL-196
+project: Dongfeng Experience Community
+
+group:
+  # Display title of the supergroup as shown in Telegram.
+  title: "Dongfeng Experience Community"
+  # Numeric chat id of the supergroup. ALWAYS negative for supergroups and
+  # starts with -100 (e.g. -1001234567890). Capture from @RawDataBot or the
+  # bot's structured logs (see deployment.md "Finding chat / topic / user IDs").
+  group_id: "<GROUP_ID>"            # env: DFENG_GROUP_ID
+  # Visibility MUST be private/invite-only. There is NO public @username and NO
+  # public t.me/<name> link. Record the setting state for the audit trail.
+  is_private: true                  # public username MUST be unset
+  public_username: null             # MUST remain null (not publicly discoverable)
+  forum_topics_enabled: true        # Topics/forum mode MUST be ON
+  # Invite-only enforcement. With "Approve New Members" ON, the primary invite
+  # link issues *join requests* an admin (or the bot) must approve.
+  approve_new_members: true         # join requests require admin/bot approval
+  # The primary invite link (treat as sensitive — anyone with it can REQUEST to
+  # join). Leave blank in the committed template; fill only in the gitignored copy.
+  primary_invite_link: "<INVITE_LINK_OR_BLANK>"
+  slow_mode_seconds: 0              # optional; 0 = off. Raise to throttle chat.
+
+# --- The six forum topics, IN CREATION ORDER --------------------------------
+# thread_id is the message_thread_id of the topic. Capture each by posting a
+# message in the topic and reading `thread_id=<n>` from the bot logs, or via
+# @RawDataBot. The pinned "General" topic that Telegram auto-creates has
+# thread_id 1 and is NOT one of the six below — keep it hidden/closed or repurpose
+# (see runbook).
+topics:
+  - name: "Announcements & Events"
+    thread_id: "<THREAD_ID>"        # env: DFENG_TOPIC_ANNOUNCEMENTS
+    closed: true                    # closed topic = admin-only posting; reactions stay on for members
+    posting: admins_only
+    reactions: enabled              # members react but cannot post (Telegram limitation, see runbook)
+
+  - name: "BOX Owners Lounge"
+    thread_id: "<THREAD_ID>"        # env: DFENG_TOPIC_WELCOME  (owner lounge #1)
+    closed: false
+    posting: members
+    reactions: enabled
+
+  - name: "007 Owners Club"
+    thread_id: "<THREAD_ID>"        # env: DFENG_TOPIC_QUALIFICATION  (owner lounge #2)
+    closed: false
+    posting: members
+    reactions: enabled
+
+  - name: "VIGO Owners Circle"
+    thread_id: "<THREAD_ID>"        # env: DFENG_TOPIC_EVENTS  (owner lounge #3)
+    closed: false
+    posting: members
+    reactions: enabled
+
+  - name: "General Community Chat"
+    thread_id: "<THREAD_ID>"        # env: DFENG_TOPIC_GENERAL
+    closed: false
+    posting: members
+    reactions: enabled
+
+  - name: "Support & Assistance"
+    thread_id: "<THREAD_ID>"        # env: DFENG_TOPIC_SUPPORT
+    closed: false
+    posting: members
+    reactions: enabled
+
+# --- Admin role register (OUT-OF-BAND TIERING) ------------------------------
+# Telegram has only two native ranks: Owner and Administrator. The L1/L2/L3
+# tiers in VOL-196 are an organisational construct Telegram cannot store. This
+# register IS that source of truth. The bot treats EVERY id listed here as an
+# admin via DFENG_ADMIN_IDS (it has no per-level logic yet); the `level` field
+# is for human governance + future per-level gating. See runbook "Admin tiers".
+admins:
+  # --- Level 3: Management (full control: group settings, bot config, Sheets) -
+  - telegram_id: "<TELEGRAM_USER_ID>"
+    handle: "@<username>"
+    name: "<Full Name>"
+    level: 3
+    is_owner: true                  # the Telegram group Owner (creator) sits at L3
+
+  # --- Level 2: Dongfeng Support (L1 + product/servicing/support escalation) --
+  - telegram_id: "<TELEGRAM_USER_ID>"
+    handle: "@<username>"
+    name: "<Full Name>"
+    level: 2
+    is_owner: false
+
+  # --- Level 1: Community Management (announce, approve, pin, delete, mute) ----
+  - telegram_id: "<TELEGRAM_USER_ID>"
+    handle: "@<username>"
+    name: "<Full Name>"
+    level: 1
+    is_owner: false
+
+# Comma-join every telegram_id above (any level) into this single env value.
+# The bot does not distinguish levels yet, so all admins go here.
+admin_ids_env: "<ID1>,<ID2>,<ID3>"  # env: DFENG_ADMIN_IDS
+
+# --- The bot's own admin account --------------------------------------------
+# The bot MUST be promoted to admin with these rights (see runbook). It is NOT
+# added to DFENG_ADMIN_IDS (that list is for human moderators).
+bot:
+  username: "@<bot_username>"
+  telegram_id: "<BOT_USER_ID>"
+  required_admin_rights:
+    delete_messages: true
+    restrict_members: true          # ban / mute / restrict
+    pin_messages: true
+    manage_topics: true             # create/edit/close/reopen forum topics
+    invite_users_via_link: true     # manage + use invite links
+    # The bot does NOT need: change_group_info, add_new_admins, post anonymously.
+
+# --- Bot env summary (transcribe the values above into .env) -----------------
+# This block mirrors the keys the bot reads in src/dfeng_bot/config.py so the
+# operator can copy/paste. These are NOT real values — placeholders only.
+env_mapping:
+  DFENG_GROUP_ID: "<GROUP_ID>"
+  DFENG_TOPIC_ANNOUNCEMENTS: "<THREAD_ID of 'Announcements & Events'>"
+  DFENG_TOPIC_WELCOME: "<THREAD_ID of 'BOX Owners Lounge'>"
+  DFENG_TOPIC_QUALIFICATION: "<THREAD_ID of '007 Owners Club'>"
+  DFENG_TOPIC_EVENTS: "<THREAD_ID of 'VIGO Owners Circle'>"
+  DFENG_TOPIC_GENERAL: "<THREAD_ID of 'General Community Chat'>"
+  DFENG_TOPIC_SUPPORT: "<THREAD_ID of 'Support & Assistance'>"
+  DFENG_ADMIN_IDS: "<ID1>,<ID2>,<ID3>"
+  # TELEGRAM_BOT_TOKEN stays in .env / secret manager only — never in this file.
+
+# -----------------------------------------------------------------------------
+# SECURITY: the filled-in copy (config/group-setup.yaml) contains the real
+# group id, admin user ids and possibly an invite link. Keep it OUT of git.
+# Only this *.example.yaml template (placeholders) is committed. Confirm the
+# real file is matched by .gitignore before committing anything.
+# -----------------------------------------------------------------------------

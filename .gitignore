@@ -2,6 +2,10 @@
 .env
 .env.*
 !.env.example
+# Filled-in supergroup setup notes (real group/admin ids, invite link).
+# Only the *.example template is committed — see config/group-setup.example.yaml.
+config/group-setup.yaml
+config/group-setup.yml
 *.json
 !**/package.json
 !**/tsconfig.json
