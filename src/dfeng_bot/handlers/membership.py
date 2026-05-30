@@ -20,6 +20,7 @@ from telegram.ext import ContextTypes
 from ..logging_setup import log_event
 from ..services.entry_source import resolve_entry_source
 from .base import get_config
+from .link_restrictions import record_join
 from .welcome import send_welcome
 
 # Key under which the resolved entry source is stashed in ``context.user_data``
@@ -57,7 +58,9 @@ async def on_new_member(
           resolved ``entry_source`` returned here / stashed in
           ``context.user_data[ENTRY_SOURCE_KEY]`` is the value for the workbook's
           "Entry source" column.
-        * anti-spam: apply join-time restrictions for untrusted users.
+        * VOL-209 link restriction: ``record_join`` stamps the member's join time
+          in the trust store so the link-restriction trust threshold (join age /
+          clean-message progression) starts from this moment.
 
     Args:
         entry_source: Pre-resolved entry source from the caller (the join handler
@@ -81,6 +84,10 @@ async def on_new_member(
         entry_source = resolve_entry_source(link)
     if context.user_data is not None:
         context.user_data[ENTRY_SOURCE_KEY] = entry_source
+
+    # VOL-209: record join time so the link-restriction trust threshold (join age
+    # / clean-message progression) starts counting from the moment of join.
+    record_join(member.id)
 
     log_event(
         "new_member_hook",

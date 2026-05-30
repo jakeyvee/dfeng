@@ -27,7 +27,7 @@ from telegram.ext import (
 
 from ..config import Config
 from ..logging_setup import get_logger
-from . import antispam, flood_control
+from . import antispam, flood_control, link_restrictions
 from .commands import build_command_handlers
 from .join_request import handle_chat_join_request
 from .membership import handle_chat_member_update, handle_new_chat_members
@@ -68,7 +68,21 @@ def register_handlers(application: Application, config: Config) -> None:
         ),
         group=GROUP_PREFILTER,
     )
-    # VOL-209 (link restriction) -> add MessageHandler(..., link_guard.check) here.
+    # VOL-209 link restriction: block links from new/low-trust members until they
+    # cross the trust threshold (join age OR clean-message count OR qualified OR
+    # admin-approved). Registered AFTER anti-spam (so it only sees non-spam, never
+    # re-deleting what anti-spam removed) and BEFORE/with flood control in the same
+    # group. link_restrictions.check raises ApplicationHandlerStop ONLY when it
+    # actually removes a link message; a clean message passes through AND increments
+    # the member's clean_message_count for trust progression. Matches text + caption
+    # messages (links can ride captions on media). Default OFF (feature-flagged).
+    application.add_handler(
+        MessageHandler(
+            (filters.TEXT | filters.CAPTION) & ~filters.StatusUpdate.ALL & ~filters.COMMAND,
+            link_restrictions.check,
+        ),
+        group=GROUP_PREFILTER,
+    )
     #
     # VOL-210 flood control: per-user message-rate cap across ALL topics.
     # Registered AFTER anti-spam in the SAME group so both prefilter handlers
@@ -130,7 +144,7 @@ def register_handlers(application: Application, config: Config) -> None:
     # Register these in GROUP_PREFILTER (-1) so they run before normal handling
     # and can consume abusive updates via ApplicationHandlerStop:
     #   * anti-spam (VOL-208)             -> DONE: antispam.check (above)
-    #   * new-user link restriction (VOL-209) -> add prefilter handler above
+    #   * new-user link restriction (VOL-209) -> DONE: link_restrictions.check (above)
     #   * flood control / rate limiting (VOL-210) -> DONE: flood_control.check (above)
     # Register normal feature handlers in their own groups:
     #   * onboarding / welcome (VOL-203)  -> DONE: membership.on_new_member ->

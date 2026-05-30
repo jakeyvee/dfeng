@@ -235,6 +235,24 @@ class SpamSettings:
 
 
 @dataclass(frozen=True)
+class LinkRestrictions:
+    """New-user link-restriction + trust thresholds (VOL-209).
+
+    Untrusted (new / low-trust) members cannot post links until they cross the
+    trust threshold (see ``handlers/link_restrictions.py``). A member is trusted
+    when ANY holds: join age >= ``trust_min_age_seconds`` (default 24h), OR
+    ``clean_message_count >= trust_min_messages`` (default 3), OR they qualified
+    (VOL-204), OR a moderator ran ``/trust``. ``silent`` chooses silent removal
+    vs. a friendly in-thread notice; ``exempt_admins`` keeps admins clear.
+    """
+
+    trust_min_age_seconds: int = 24 * 60 * 60
+    trust_min_messages: int = 3
+    exempt_admins: bool = True
+    silent: bool = False
+
+
+@dataclass(frozen=True)
 class FeatureFlags:
     """Toggles so subsystems can ship dark and be enabled per environment."""
 
@@ -243,6 +261,7 @@ class FeatureFlags:
     sheets: bool
     antispam: bool
     flood_control: bool
+    link_restrictions: bool
     support_redirect: bool
 
 
@@ -272,6 +291,7 @@ class Config:
     trust_threshold: int
     rate_limits: RateLimits
     spam: SpamSettings
+    link_restrictions: LinkRestrictions
     features: FeatureFlags
 
     # Runtime
@@ -328,12 +348,19 @@ class Config:
                 exempt_admins=_get_bool("DFENG_RATE_LIMIT_EXEMPT_ADMINS", True),
             ),
             spam=cls._build_spam(),
+            link_restrictions=LinkRestrictions(
+                trust_min_age_seconds=_get_int("DFENG_LINK_TRUST_MIN_AGE_SECONDS", 24 * 60 * 60),
+                trust_min_messages=_get_int("DFENG_LINK_TRUST_MIN_MESSAGES", 3),
+                exempt_admins=_get_bool("DFENG_LINK_EXEMPT_ADMINS", True),
+                silent=_get_bool("DFENG_LINK_SILENT", False),
+            ),
             features=FeatureFlags(
                 welcome=_get_bool("DFENG_FEATURE_WELCOME", True),
                 qualification=_get_bool("DFENG_FEATURE_QUALIFICATION", True),
                 sheets=_get_bool("DFENG_FEATURE_SHEETS", False),
                 antispam=_get_bool("DFENG_FEATURE_ANTISPAM", False),
                 flood_control=_get_bool("DFENG_FEATURE_FLOOD_CONTROL", False),
+                link_restrictions=_get_bool("DFENG_FEATURE_LINK_RESTRICTIONS", False),
                 support_redirect=_get_bool("DFENG_FEATURE_SUPPORT_REDIRECT", True),
             ),
             run_mode=run_mode,
@@ -397,6 +424,7 @@ class Config:
                 "sheets": self.features.sheets,
                 "antispam": self.features.antispam,
                 "flood_control": self.features.flood_control,
+                "link_restrictions": self.features.link_restrictions,
                 "support_redirect": self.features.support_redirect,
             },
             "log_level": self.log_level,

@@ -62,7 +62,8 @@ wins (raise `ApplicationHandlerStop` to consume an update). Defined in
 | Qualification flow              | VOL-204 (done)   | `handlers/qualification.py`; entered via `welcome.start_qualification` or `/qualify`; text fallback in `messages.handle_message`, `qual:`-namespaced callbacks routed from `messages.handle_callback_query`; resolved tag stashed in `context.user_data["tag"]` (`qualification.TAG_KEY`) for VOL-205 |
 | PDPA / Sheets persistence       | VOL-198/205/206  | `services/sheets.py` (`build_sheets_service`); call from `on_new_member` |
 | Support redirection             | —                | extension point in `messages.handle_message`               |
-| Anti-spam / link restriction    | —                | new module, register in `GROUP_PREFILTER`                  |
+| Anti-spam                       | VOL-208 (done)   | `handlers/antispam.py`, registered in `GROUP_PREFILTER`     |
+| New-user link restriction       | VOL-209 (done)   | `handlers/link_restrictions.py` (`message_has_link` + `is_trusted` + `TrustStore`); prefilter in `GROUP_PREFILTER` after anti-spam; join time recorded via `membership.on_new_member` -> `record_join`; admin `/trust` command |
 | Flood control / rate limits     | —                | new module, register in `GROUP_PREFILTER`; thresholds in `config.rate_limits` |
 | Admin / moderation commands     | —                | `commands.build_command_handlers()`, gate with `is_admin()` |
 

@@ -16,6 +16,7 @@ from telegram.ext import CommandHandler, ContextTypes
 
 from ..logging_setup import log_event
 from .base import is_admin, reply_in_thread, thread_id_of
+from .link_restrictions import cmd_trust
 from .qualification import cmd_qualify
 
 
@@ -72,4 +73,7 @@ def build_command_handlers() -> list[CommandHandler]:
         # VOL-204 manual qualification (re)start. Documented retry path so a user
         # can (re)trigger the Owner/Prospect flow at any time.
         CommandHandler("qualify", cmd_qualify),
+        # VOL-209 admin-only manual trust/approve: reply with /trust or
+        # /trust <user_id> to let a member post links. Gated by is_admin inside.
+        CommandHandler("trust", cmd_trust),
     ]
