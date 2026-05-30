@@ -39,15 +39,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     config = get_config(context)
 
-    # --- EXTENSION POINT: anti-spam / link restriction -----------------------
-    if config.features.antispam:
-        # if await antispam.check(update, context): return
-        pass
-
-    # --- EXTENSION POINT: flood control --------------------------------------
-    if config.features.flood_control:
-        # if await flood.check(update, context): return
-        pass
+    # --- Anti-spam / flood control run in GROUP_PREFILTER (-1), not here ------
+    # VOL-208 anti-spam (handlers/antispam.py) and the future VOL-209/VOL-210
+    # link/flood guards are registered as prefilter handlers in
+    # ``handlers/__init__.py`` so they run BEFORE this handler and consume spam
+    # via ApplicationHandlerStop. By the time we reach here the message is not
+    # spam, so the subsystems below can treat it as legitimate.
 
     # --- EXTENSION POINT: support redirection (VOL-207) ----------------------
     # Observer: nudges support-flavoured messages toward the Support topic but

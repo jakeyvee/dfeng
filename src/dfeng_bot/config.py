@@ -83,6 +83,39 @@ def _get_str_list(key: str, default: Optional[list[str]] = None) -> list[str]:
     return [p.strip() for p in raw.split(",") if p.strip()]
 
 
+def _load_spam_rules_yaml() -> dict:
+    """Load ``config/spam-rules.yaml`` if present and PyYAML is installed.
+
+    Returns the parsed mapping, or ``{}`` when the file is absent or PyYAML is
+    not installed. PyYAML is lazily imported here so the module stays import-clean
+    and adds no hard dependency (the committed file is ``spam-rules.example.yaml``;
+    the real ``spam-rules.yaml`` is gitignored and optional). Env vars remain the
+    primary config path; YAML is a convenience for managing long rule lists.
+    """
+
+    path = os.environ.get("DFENG_SPAM_RULES_FILE", "config/spam-rules.yaml")
+    if not path or not os.path.exists(path):
+        return {}
+    try:
+        import yaml  # lazy: optional dependency, not in requirements.txt
+    except Exception:  # pragma: no cover - PyYAML simply not installed
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            data = yaml.safe_load(fh) or {}
+    except Exception as exc:  # pragma: no cover - surface malformed rules clearly
+        raise ConfigError(f"Failed to parse spam rules file {path!r}: {exc}") from exc
+    return data if isinstance(data, dict) else {}
+
+
+def _spam_list(yaml_rules: dict, yaml_key: str, env_key: str) -> list[str]:
+    """Resolve a spam rule list: YAML value wins, else env (comma-separated)."""
+    value = yaml_rules.get(yaml_key)
+    if isinstance(value, list):
+        return [str(v).strip() for v in value if str(v).strip()]
+    return _get_str_list(env_key, [])
+
+
 # --- structured sub-configs --------------------------------------------------
 
 
@@ -156,10 +189,30 @@ class RateLimits:
 
 @dataclass(frozen=True)
 class SpamSettings:
-    """Anti-spam / link-restriction settings for the future anti-spam ticket."""
+    """Anti-spam settings (VOL-208).
+
+    Rule lists default to empty here; the anti-spam handler
+    (``handlers/antispam.py``) substitutes its own built-in DEFAULT_* lists when a
+    field is empty, so a deployment only needs to set the keys it wants to
+    override. Lists are populated from env (comma-separated) and/or an optional
+    ``config/spam-rules.yaml`` (loaded by :func:`_load_spam_rules_yaml`); the YAML
+    file, when present, takes precedence over the env defaults below.
+    """
 
     block_links: bool
+    exempt_admins: bool = True
     allowed_domains: list[str] = field(default_factory=list)
+    crypto_keywords: list[str] = field(default_factory=list)
+    ad_keywords: list[str] = field(default_factory=list)
+    shortener_domains: list[str] = field(default_factory=list)
+    blocked_domains: list[str] = field(default_factory=list)
+    blocked_tlds: list[str] = field(default_factory=list)
+    repeat_count: int = 3
+    repeat_window_seconds: int = 60
+    # Escalation: temporarily restrict a user after this many removed messages in
+    # one process lifetime (0 = delete + log only; no restrict).
+    restrict_after: int = 0
+    restrict_seconds: int = 3600
 
 
 @dataclass(frozen=True)
@@ -252,10 +305,7 @@ class Config:
                 max_messages=_get_int("DFENG_RATE_LIMIT_MESSAGES", 5),
                 window_seconds=_get_int("DFENG_RATE_LIMIT_WINDOW_SECONDS", 10),
             ),
-            spam=SpamSettings(
-                block_links=_get_bool("DFENG_SPAM_BLOCK_LINKS", True),
-                allowed_domains=_get_str_list("DFENG_SPAM_ALLOWED_DOMAINS", []),
-            ),
+            spam=cls._build_spam(),
             features=FeatureFlags(
                 welcome=_get_bool("DFENG_FEATURE_WELCOME", True),
                 qualification=_get_bool("DFENG_FEATURE_QUALIFICATION", True),
@@ -273,6 +323,34 @@ class Config:
             ),
             log_level=_get_str("DFENG_LOG_LEVEL", "INFO").upper(),
             log_format=log_format,
+        )
+
+    @staticmethod
+    def _build_spam() -> "SpamSettings":
+        """Assemble :class:`SpamSettings` from env + optional spam-rules.yaml.
+
+        Rule lists resolve as: ``config/spam-rules.yaml`` value (if present) >
+        env var (comma-separated) > empty (handler falls back to its DEFAULT_*).
+        Scalars come from env. Keeps all spam config plumbing in one place.
+        """
+        y = _load_spam_rules_yaml()
+        return SpamSettings(
+            block_links=_get_bool("DFENG_SPAM_BLOCK_LINKS", True),
+            exempt_admins=_get_bool("DFENG_SPAM_EXEMPT_ADMINS", True),
+            allowed_domains=_spam_list(y, "allowed_domains", "DFENG_SPAM_ALLOWED_DOMAINS"),
+            crypto_keywords=_spam_list(y, "crypto_keywords", "DFENG_SPAM_CRYPTO_KEYWORDS"),
+            ad_keywords=_spam_list(y, "ad_keywords", "DFENG_SPAM_AD_KEYWORDS"),
+            shortener_domains=_spam_list(y, "shortener_domains", "DFENG_SPAM_SHORTENER_DOMAINS"),
+            blocked_domains=_spam_list(y, "blocked_domains", "DFENG_SPAM_BLOCKED_DOMAINS"),
+            blocked_tlds=_spam_list(y, "blocked_tlds", "DFENG_SPAM_BLOCKED_TLDS"),
+            repeat_count=int(y.get("repeat_count", _get_int("DFENG_SPAM_REPEAT_COUNT", 3))),
+            repeat_window_seconds=int(
+                y.get("repeat_window_seconds", _get_int("DFENG_SPAM_REPEAT_WINDOW_SECONDS", 60))
+            ),
+            restrict_after=int(y.get("restrict_after", _get_int("DFENG_SPAM_RESTRICT_AFTER", 0))),
+            restrict_seconds=int(
+                y.get("restrict_seconds", _get_int("DFENG_SPAM_RESTRICT_SECONDS", 3600))
+            ),
         )
 
     # --- convenience ---------------------------------------------------------
