@@ -16,6 +16,7 @@ from telegram.ext import CommandHandler, ContextTypes
 
 from ..logging_setup import log_event
 from .base import is_admin, reply_in_thread, thread_id_of
+from .qualification import cmd_qualify
 
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -68,4 +69,7 @@ def build_command_handlers() -> list[CommandHandler]:
         CommandHandler("start", cmd_start),
         CommandHandler("ping", cmd_ping),
         CommandHandler("health", cmd_admin_health),
+        # VOL-204 manual qualification (re)start. Documented retry path so a user
+        # can (re)trigger the Owner/Prospect flow at any time.
+        CommandHandler("qualify", cmd_qualify),
     ]

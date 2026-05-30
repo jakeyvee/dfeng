@@ -22,7 +22,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from ..logging_setup import log_event
-from . import support_redirect
+from . import qualification, support_redirect
 from .base import get_config, thread_id_of
 
 
@@ -51,10 +51,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     # does NOT consume the update — qualification + logging still run below.
     await support_redirect.maybe_redirect(update, context)
 
-    # --- EXTENSION POINT: qualification flow ---------------------------------
+    # --- EXTENSION POINT: qualification flow (VOL-204) -----------------------
+    # Text-answer fallback to the inline-button qualification flow. Only acts
+    # when the user is mid-flow (state in user_data); otherwise it's a no-op and
+    # normal chat falls through to logging below. Consumes the update when it
+    # advanced the flow so we don't also log it as generic chatter.
     if config.features.qualification:
-        # if await qualification.advance(update, context): return
-        pass
+        if await qualification.advance(update, context):
+            return
 
     log_event(
         "message_received",
@@ -78,5 +82,16 @@ async def handle_callback_query(
     query = update.callback_query
     if query is None:
         return
+    # Always answer first so the client stops showing a loading spinner.
     await query.answer()
+
+    # --- ROUTE: qualification callbacks (qual: namespace, VOL-204) -----------
+    # Qualification owns the ``qual:`` callback-data namespace. Route those to it
+    # and let any other/future callbacks fall through to generic logging. This
+    # keeps the shared callback seam composable as more inline flows are added.
+    config = get_config(context)
+    if config.features.qualification and qualification.owns_callback(query.data):
+        await qualification.handle_callback(update, context)
+        return
+
     log_event("callback_query", update, data=query.data, outcome="ack_v1")

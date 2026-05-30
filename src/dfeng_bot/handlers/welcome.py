@@ -31,8 +31,10 @@ store (Redis, the Sheets row, etc.).
 Hand-off to qualification (VOL-204)
 -----------------------------------
 After welcoming, :func:`start_qualification` is invoked as an extension seam.
-VOL-204 implements the real qualification flow there; for now it is a no-op that
-logs ``qualification_pending``.
+The real flow lives in ``handlers/qualification.py``; this module's
+:func:`start_qualification` is a thin delegate to it. Welcome imports
+qualification (one direction only) to avoid a circular import — qualification
+must NOT import welcome.
 """
 
 from __future__ import annotations
@@ -170,20 +172,14 @@ async def start_qualification(
     context: ContextTypes.DEFAULT_TYPE,
     member: User,
 ) -> None:
-    """EXTENSION HOOK for the qualification flow (VOL-204).
+    """Hand off to the qualification flow (VOL-204).
 
-    Intentionally a no-op stub in VOL-203: it only logs ``qualification_pending``
-    so the hand-off seam is observable. VOL-204 implements the real flow here
-    (or dispatches to a dedicated ``handlers/qualification.py`` module) and must
-    keep honouring ``config.features.qualification``.
+    Thin delegate to ``handlers/qualification.start_qualification`` (imported
+    locally to keep the welcome <-> qualification dependency one-directional and
+    avoid a circular import). That implementation honours
+    ``config.features.qualification`` and never blocks entry.
     """
 
-    config = get_config(context)
-    log_event(
-        "qualification_pending",
-        update,
-        member_id=member.id,
-        member_username=member.username,
-        qualification_enabled=config.features.qualification,
-        outcome="noop_v1",
-    )
+    from .qualification import start_qualification as _start_qualification
+
+    await _start_qualification(update, context, member)

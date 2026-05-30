@@ -59,7 +59,7 @@ wins (raise `ApplicationHandlerStop` to consume an update). Defined in
 |---------------------------------|------------------|------------------------------------------------------------|
 | Entry-source tracking           | VOL-202 (done)   | `services/entry_source.py` (`resolve_entry_source`); captured in `membership` + `join_request` handlers, stashed in `context.user_data["entry_source"]` |
 | Onboarding / welcome            | VOL-203 (done)   | `membership.on_new_member()` -> `welcome.send_welcome()`   |
-| Qualification flow              | VOL-204          | `messages.handle_message` + `handle_callback_query`        |
+| Qualification flow              | VOL-204 (done)   | `handlers/qualification.py`; entered via `welcome.start_qualification` or `/qualify`; text fallback in `messages.handle_message`, `qual:`-namespaced callbacks routed from `messages.handle_callback_query`; resolved tag stashed in `context.user_data["tag"]` (`qualification.TAG_KEY`) for VOL-205 |
 | PDPA / Sheets persistence       | VOL-198/205/206  | `services/sheets.py` (`build_sheets_service`); call from `on_new_member` |
 | Support redirection             | —                | extension point in `messages.handle_message`               |
 | Anti-spam / link restriction    | —                | new module, register in `GROUP_PREFILTER`                  |
