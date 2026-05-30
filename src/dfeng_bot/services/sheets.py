@@ -80,6 +80,11 @@ class NullSheetsService:
     def update_member_row(self, tid: int, record: Mapping[str, Any]) -> None:
         return None
 
+    def flag_needs_reconciliation(self, tid: int) -> bool:
+        # No sheet to flag; the write queue's dead-letter + ERROR log carry the
+        # reconciliation signal instead. Report "not flagged".
+        return False
+
 
 class GoogleSheetsService:
     """Schema-aware gspread-backed Sheets client.
@@ -223,6 +228,30 @@ class GoogleSheetsService:
             "sheets_member_updated",
             extra={"action": "sheets_member_updated", "telegram_id": tid},
         )
+
+    def flag_needs_reconciliation(self, tid: int) -> bool:
+        """Best-effort: set the admin ``Status`` cell to NEEDS_RECONCILIATION (VOL-206).
+
+        Writes ONLY the single admin ``schema.RECONCILE_STATUS_COLUMN`` cell of an
+        existing member row — never the bot-owned range, so it can't clobber the
+        member data, and never creates a row. Returns True if the flag was written,
+        False if no row exists for *tid*. May RAISE if Sheets is unreachable; the
+        caller (write queue) treats this as best-effort and swallows errors, since
+        the dead-letter list + ERROR log are the durable reconciliation signals.
+        """
+
+        ws = self._get_worksheet()
+        row_number = self.find_row_by_telegram_id(tid)
+        if row_number is None:
+            return False
+        col_letter = _col_letter(schema.column_index(schema.RECONCILE_STATUS_COLUMN) + 1)
+        cell = f"{col_letter}{row_number}"
+        ws.update(cell, [[schema.RECONCILE_STATUS_VALUE]], value_input_option="USER_ENTERED")
+        logger.warning(
+            "sheets_reconcile_flagged",
+            extra={"action": "sheets_reconcile_flagged", "telegram_id": tid},
+        )
+        return True
 
     # --- legacy Protocol surface (kept for callers wired to SheetsService) --
 

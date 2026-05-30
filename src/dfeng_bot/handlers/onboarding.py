@@ -256,6 +256,28 @@ def persist_member(service: Any, record: Mapping[str, str]) -> str:
     return "appended"
 
 
+# --- write-queue accessor (VOL-206) -----------------------------------------
+def _get_write_queue(context: ContextTypes.DEFAULT_TYPE) -> Any:
+    """Return the shared write queue from ``bot_data``, or None if unavailable.
+
+    The queue is started in ``app.py`` post_init and stored under
+    ``write_queue.WRITE_QUEUE_KEY``. Returns None when the feature is disabled or
+    the application has no bot_data (e.g. unit tests), so callers can fall back to
+    the direct write path. Never raises.
+    """
+
+    try:
+        from ..services.write_queue import WRITE_QUEUE_KEY
+
+        app = getattr(context, "application", None)
+        bot_data = getattr(app, "bot_data", None) if app is not None else None
+        if not bot_data:
+            return None
+        return bot_data.get(WRITE_QUEUE_KEY)
+    except Exception:  # noqa: BLE001 - never block persistence on queue lookup
+        return None
+
+
 # --- internal state helpers --------------------------------------------------
 def _set_state(context: ContextTypes.DEFAULT_TYPE, state: Optional[str]) -> None:
     if context.user_data is None:
@@ -545,7 +567,31 @@ async def _finish_and_persist(
         context.user_data.pop(PHONE_KEY, None)
         context.user_data.pop(PLATE_KEY, None)
 
-    # Build the Sheets service from config (NullSheetsService when unconfigured).
+    # VOL-206: route the write through the resilient async queue when one is wired
+    # up (started in app.py post_init). enqueue() returns IMMEDIATELY — the
+    # background worker persists with retries/backoff and dead-letters on
+    # exhaustion — so a Sheets outage never blocks this onboarding flow. When the
+    # queue is absent/disabled, fall back to VOL-205's direct write path.
+    queue = _get_write_queue(context)
+    if queue is not None:
+        queue.enqueue(record)
+        log_event(
+            "member_enqueued",
+            update,
+            member_id=telegram_id,
+            member_username=username,
+            tag=tag,
+            entry_source=entry_source,
+            # PII-safe: presence only, never the values (schema.PII_COLUMNS).
+            phone_provided=bool(record["Optional phone"]),
+            plate_provided=bool(record["Optional plate"]),
+            consent_recorded=bool(record["Consent timestamp"]),
+            outcome="queued",
+        )
+        return
+
+    # Direct path (VOL-205 fallback): build the Sheets service from config
+    # (NullSheetsService when unconfigured) and write in a worker thread.
     from ..services.sheets import build_sheets_service
 
     service = build_sheets_service(config)

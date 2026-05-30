@@ -53,6 +53,16 @@ def _get_int(key: str, default: Optional[int] = None, *, required: bool = False)
         raise ConfigError(f"Environment variable {key} must be an integer, got {raw!r}") from exc
 
 
+def _get_float(key: str, default: float) -> float:
+    raw = os.environ.get(key)
+    if raw is None or raw == "":
+        return default
+    try:
+        return float(raw)
+    except ValueError as exc:
+        raise ConfigError(f"Environment variable {key} must be a number, got {raw!r}") from exc
+
+
 def _get_bool(key: str, default: bool = False) -> bool:
     raw = os.environ.get(key)
     if raw is None or raw == "":
@@ -253,6 +263,28 @@ class LinkRestrictions:
 
 
 @dataclass(frozen=True)
+class WriteQueueConfig:
+    """Sheets write-queue retry / throttle tunables (VOL-206).
+
+    The queue routes ``persist_member`` through a resilient async layer so a Sheets
+    outage never blocks onboarding. ``enabled`` defaults to ON; when off, onboarding
+    falls back to VOL-205's direct (in-thread) write path. Retry uses exponential
+    backoff (``base_delay`` doubling, capped at ``max_delay``, ``max_attempts``
+    total). ``min_write_interval`` is the floor between writes leaving the worker —
+    quota smoothing for the Sheets limits (300 write/min/project, 60 req/min/user;
+    ~1.1s ≈ 54 writes/min, safely under). ``max_pending`` bounds the in-memory
+    queue. See ``services/write_queue.py`` for the durability tradeoff (in-memory).
+    """
+
+    enabled: bool = True
+    max_attempts: int = 5
+    base_delay: float = 1.0
+    max_delay: float = 30.0
+    min_write_interval: float = 1.1
+    max_pending: int = 1000
+
+
+@dataclass(frozen=True)
 class FeatureFlags:
     """Toggles so subsystems can ship dark and be enabled per environment."""
 
@@ -293,6 +325,7 @@ class Config:
     rate_limits: RateLimits
     spam: SpamSettings
     link_restrictions: LinkRestrictions
+    write_queue: WriteQueueConfig
     features: FeatureFlags
 
     # Runtime
@@ -354,6 +387,16 @@ class Config:
                 trust_min_messages=_get_int("DFENG_LINK_TRUST_MIN_MESSAGES", 3),
                 exempt_admins=_get_bool("DFENG_LINK_EXEMPT_ADMINS", True),
                 silent=_get_bool("DFENG_LINK_SILENT", False),
+            ),
+            write_queue=WriteQueueConfig(
+                # Default ON; only matters when Sheets writes are active. When OFF,
+                # onboarding uses VOL-205's direct path.
+                enabled=_get_bool("DFENG_WRITE_QUEUE_ENABLED", True),
+                max_attempts=_get_int("DFENG_WRITE_QUEUE_MAX_ATTEMPTS", 5),
+                base_delay=_get_float("DFENG_WRITE_QUEUE_BASE_DELAY", 1.0),
+                max_delay=_get_float("DFENG_WRITE_QUEUE_MAX_DELAY", 30.0),
+                min_write_interval=_get_float("DFENG_WRITE_QUEUE_MIN_INTERVAL", 1.1),
+                max_pending=_get_int("DFENG_WRITE_QUEUE_MAX_PENDING", 1000),
             ),
             features=FeatureFlags(
                 welcome=_get_bool("DFENG_FEATURE_WELCOME", True),
@@ -420,6 +463,7 @@ class Config:
             # strings themselves (they are join-grant secrets).
             "invite_links_configured": len(self.invite_links.as_mapping()),
             "trust_threshold": self.trust_threshold,
+            "write_queue_enabled": self.write_queue.enabled,
             "features": {
                 "welcome": self.features.welcome,
                 "qualification": self.features.qualification,

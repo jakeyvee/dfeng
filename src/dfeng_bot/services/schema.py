@@ -69,6 +69,15 @@ KEY_COLUMN: str = "Telegram ID"
 # Columns holding PII that must never be written to logs.
 PII_COLUMNS: frozenset[str] = frozenset({"Optional phone", "Optional plate"})
 
+# --- Reconciliation (VOL-206) -----------------------------------------------
+# When a member write exhausts its retries, the write queue best-effort sets this
+# ADMIN-owned column to RECONCILE_STATUS_VALUE for the affected Telegram ID. This
+# reuses the existing admin "Status" column (race-safe: bot only touches it for
+# this signal) — NO new required columns are introduced. ``Last reconciled`` is
+# left for a human to stamp once they action the row.
+RECONCILE_STATUS_COLUMN: str = "Status"
+RECONCILE_STATUS_VALUE: str = "NEEDS_RECONCILIATION"
+
 
 def column_index(name: str) -> int:
     """Return the 0-based position of *name* in the canonical header.

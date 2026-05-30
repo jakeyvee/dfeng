@@ -53,12 +53,43 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
     )
 
 
+async def _post_init(application: Application) -> None:
+    """Start the Sheets write-queue worker once the event loop is running (VOL-206).
+
+    The queue routes onboarding's ``persist_member`` writes through a resilient
+    async layer (retries + backoff + dead-letter) so a Sheets outage never blocks
+    onboarding. Stored in ``bot_data`` so handlers (onboarding, ``/sheets_status``)
+    can reach it. No-op-safe when Sheets is the Null service.
+    """
+
+    from .services.write_queue import WRITE_QUEUE_KEY, build_write_queue
+
+    config: Config = application.bot_data[CONFIG_KEY]
+    if not config.write_queue.enabled:
+        return
+    queue = build_write_queue(config)
+    application.bot_data[WRITE_QUEUE_KEY] = queue
+    queue.start()
+
+
+async def _post_shutdown(application: Application) -> None:
+    """Drain + stop the write-queue worker on a clean shutdown (VOL-206)."""
+
+    from .services.write_queue import WRITE_QUEUE_KEY
+
+    queue = application.bot_data.get(WRITE_QUEUE_KEY)
+    if queue is not None:
+        await queue.stop(drain=True)
+
+
 def build_application(config: Config) -> Application:
     """Construct and configure the Application (without running it)."""
 
     application = (
         Application.builder()
         .token(config.bot_token)
+        .post_init(_post_init)
+        .post_shutdown(_post_shutdown)
         .build()
     )
 
