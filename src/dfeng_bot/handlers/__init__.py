@@ -27,7 +27,7 @@ from telegram.ext import (
 
 from ..config import Config
 from ..logging_setup import get_logger
-from . import antispam
+from . import antispam, flood_control
 from .commands import build_command_handlers
 from .join_request import handle_chat_join_request
 from .membership import handle_chat_member_update, handle_new_chat_members
@@ -69,7 +69,22 @@ def register_handlers(application: Application, config: Config) -> None:
         group=GROUP_PREFILTER,
     )
     # VOL-209 (link restriction) -> add MessageHandler(..., link_guard.check) here.
-    # VOL-210 (flood control)    -> add MessageHandler(..., flood.check) here.
+    #
+    # VOL-210 flood control: per-user message-rate cap across ALL topics.
+    # Registered AFTER anti-spam in the SAME group so both prefilter handlers
+    # coexist: anti-spam (content) runs first, flood control (rate) second.
+    # flood_control.check raises ApplicationHandlerStop ONLY when it mutes/deletes
+    # (a bare "warn" lets the chain continue), so it never double-stops with
+    # anti-spam and lets non-flooding messages reach downstream handlers. We match
+    # ALL non-status messages (not just text) since flooding is rate-based, not
+    # content-based — every message a user sends counts toward their limit.
+    application.add_handler(
+        MessageHandler(
+            ~filters.StatusUpdate.ALL & ~filters.COMMAND,
+            flood_control.check,
+        ),
+        group=GROUP_PREFILTER,
+    )
 
     # --- Commands (/start, /ping, /health, future admin commands) ------------
     for handler in build_command_handlers():
@@ -116,7 +131,7 @@ def register_handlers(application: Application, config: Config) -> None:
     # and can consume abusive updates via ApplicationHandlerStop:
     #   * anti-spam (VOL-208)             -> DONE: antispam.check (above)
     #   * new-user link restriction (VOL-209) -> add prefilter handler above
-    #   * flood control / rate limiting (VOL-210) -> add prefilter handler above
+    #   * flood control / rate limiting (VOL-210) -> DONE: flood_control.check (above)
     # Register normal feature handlers in their own groups:
     #   * onboarding / welcome (VOL-203)  -> DONE: membership.on_new_member ->
     #     welcome.send_welcome (no new handler needed; rides the join handlers)

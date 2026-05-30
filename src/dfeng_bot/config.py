@@ -181,10 +181,29 @@ class InviteLinks:
 
 @dataclass(frozen=True)
 class RateLimits:
-    """Flood-control thresholds consumed by the future flood-control ticket."""
+    """Per-user flood-control thresholds + chosen action (VOL-210).
+
+    Counting is PER USER across the WHOLE supergroup (all forum topics combined),
+    not per-topic — see ``handlers/flood_control.py``. ``max_messages`` /
+    ``window_seconds`` define the trip rate (default > 8 msgs / 10s). ``action``
+    selects the escalating response when the rate is exceeded:
+
+        * ``"warn"``   — log + reply a warning in-thread (no removal/mute).
+        * ``"mute"``   — log + temporary, time-bounded, REVERSIBLE mute via
+                          ``restrict_chat_member(until_date=...)`` so it auto-expires.
+        * ``"delete"`` — log + remove the offending (latest) message only.
+        * ``"mute_delete"`` — delete the message AND apply the temporary mute.
+
+    ``mute_seconds`` bounds the mute (auto-expiring). ``exempt_admins`` keeps
+    admins/moderators clear by default. Defaults are deliberately lenient so
+    normal active conversation never trips it (see module docstring rationale).
+    """
 
     max_messages: int
     window_seconds: int
+    action: str = "mute"
+    mute_seconds: int = 600
+    exempt_admins: bool = True
 
 
 @dataclass(frozen=True)
@@ -302,8 +321,11 @@ class Config:
             admin_ids=_get_int_list("DFENG_ADMIN_IDS", []),
             trust_threshold=_get_int("DFENG_TRUST_THRESHOLD", 3),
             rate_limits=RateLimits(
-                max_messages=_get_int("DFENG_RATE_LIMIT_MESSAGES", 5),
+                max_messages=_get_int("DFENG_RATE_LIMIT_MESSAGES", 8),
                 window_seconds=_get_int("DFENG_RATE_LIMIT_WINDOW_SECONDS", 10),
+                action=_get_str("DFENG_RATE_LIMIT_ACTION", "mute").strip().lower(),
+                mute_seconds=_get_int("DFENG_RATE_LIMIT_MUTE_SECONDS", 600),
+                exempt_admins=_get_bool("DFENG_RATE_LIMIT_EXEMPT_ADMINS", True),
             ),
             spam=cls._build_spam(),
             features=FeatureFlags(
