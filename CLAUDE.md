@@ -57,7 +57,7 @@ wins (raise `ApplicationHandlerStop` to consume an update). Defined in
 
 | Concern                         | Ticket(s)        | Where to implement                                         |
 |---------------------------------|------------------|------------------------------------------------------------|
-| Onboarding / welcome            | VOL-203          | `membership.on_new_member()` hook                          |
+| Onboarding / welcome            | VOL-203 (done)   | `membership.on_new_member()` -> `welcome.send_welcome()`   |
 | Qualification flow              | VOL-204          | `messages.handle_message` + `handle_callback_query`        |
 | PDPA / Sheets persistence       | VOL-198/205/206  | `services/sheets.py` (`build_sheets_service`); call from `on_new_member` |
 | Support redirection             | —                | extension point in `messages.handle_message`               |
@@ -84,4 +84,16 @@ wins (raise `ApplicationHandlerStop` to consume an update). Defined in
 
 See `README.md` (quick start) and `docs/deployment.md` (full guide, polling vs
 webhook, secrets). Smoke test: `/ping` replies in-thread; a member join logs
-`action=new_member`.
+`action=new_member` followed by `action=welcome_sent`.
+
+### Welcome onboarding (VOL-203)
+
+`handlers/welcome.py` posts a single welcome (`WELCOME_MESSAGE`, the verbatim
+six-topic copy) on each new member join. Where it posts: joins are observed in
+the forum's "General" topic, so by default the welcome replies there; if
+`DFENG_TOPIC_WELCOME` (`config.topics.welcome`) is set (> 0) it posts into that
+welcome topic instead. Gated by `DFENG_FEATURE_WELCOME` (default ON). Duplicate
+join signals are deduped per-process via an in-memory `{telegram_id: ts}` map
+with a 10-minute TTL (`DEDUPE_TTL_SECONDS`) — single-instance only. After
+welcoming it calls `welcome.start_qualification()`, the no-op hand-off seam
+VOL-204 fills in (currently logs `qualification_pending`).

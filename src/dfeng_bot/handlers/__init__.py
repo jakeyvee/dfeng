@@ -84,7 +84,8 @@ def register_handlers(application: Application, config: Config) -> None:
     #   * anti-spam / link restriction
     #   * flood control / rate limiting
     # Register normal feature handlers in their own groups:
-    #   * onboarding / welcome (VOL-203)  -> via membership.on_new_member
+    #   * onboarding / welcome (VOL-203)  -> DONE: membership.on_new_member ->
+    #     welcome.send_welcome (no new handler needed; rides the join handlers)
     #   * qualification (VOL-204)         -> messages + callback queries
     #   * sheets persistence (VOL-198/..) -> services/sheets.py
     #   * support redirection             -> messages handler

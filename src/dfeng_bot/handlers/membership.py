@@ -19,6 +19,7 @@ from telegram.ext import ContextTypes
 
 from ..logging_setup import log_event
 from .base import get_config
+from .welcome import send_welcome
 
 
 async def on_new_member(
@@ -28,14 +29,14 @@ async def on_new_member(
 ) -> None:
     """EXTENSION HOOK — runs once per newly joined member.
 
-    VOL-197 leaves this as a logging stub. Future tickets implement here:
-        * VOL-203 welcome: send onboarding/welcome into the welcome topic.
-        * VOL-204 qualification: kick off the qualification flow.
-        * VOL-198/205/206 sheets: persist the new member.
+    Orchestration only — real logic lives in dedicated modules:
+        * VOL-203 welcome: ``welcome.send_welcome`` (feature-flagged + deduped;
+          it also hands off to the qualification seam after welcoming).
+        * VOL-198/205/206 sheets: persist the new member (call from here).
         * anti-spam: apply join-time restrictions for untrusted users.
 
-    Keep this function focused on orchestration; put real logic in dedicated
-    modules/services and call them from here.
+    Note: ``send_welcome`` performs its own dedupe and ``features.welcome`` gate,
+    so duplicate join signals for the same user yield at most one welcome.
     """
 
     config = get_config(context)
@@ -44,9 +45,12 @@ async def on_new_member(
         update,
         member_id=member.id,
         member_username=member.username,
-        outcome="noop_v1",
+        outcome="dispatched",
         welcome_enabled=config.features.welcome,
     )
+
+    # VOL-203 welcome onboarding (no-op when DFENG_FEATURE_WELCOME is off).
+    await send_welcome(update, context, member)
 
 
 async def handle_new_chat_members(
