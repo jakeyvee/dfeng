@@ -2,6 +2,11 @@
 .env
 .env.*
 !.env.example
+# Production env (VOL-213): real secrets/IDs live here — NEVER commit. The
+# `.env.*` rule above already ignores it; this line documents the intent and the
+# negation below keeps ONLY the placeholder template (.env.production.example) tracked.
+.env.production
+!.env.production.example
 # Filled-in supergroup setup notes (real group/admin ids, invite link).
 # Only the *.example template is committed — see config/group-setup.example.yaml.
 config/group-setup.yaml

@@ -1,0 +1,53 @@
+# =============================================================================
+# Dongfeng Experience Community bot — systemd unit (VOL-213)
+# =============================================================================
+# Simple-host alternative to Docker for the single long-poll bot. Install:
+#
+#   sudo cp deploy/systemd/dfeng-bot.service /etc/systemd/system/dfeng-bot.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now dfeng-bot
+#   journalctl -u dfeng-bot -f          # follow logs
+#
+# Assumes the repo is deployed at /opt/dfeng-bot with a venv at .venv and the
+# production env at /opt/dfeng-bot/.env.production (mode 0600, owned by the
+# service user). The Google creds JSON path inside that file must point at a
+# 0600 file readable by the service user. NEVER commit .env.production or creds.
+# See docs/production-deployment.md.
+# -----------------------------------------------------------------------------
+[Unit]
+Description=Dongfeng Experience Community Telegram bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Dedicated unprivileged user/group (create once: `sudo useradd -r -s /usr/sbin/nologin dfeng`).
+User=dfeng
+Group=dfeng
+WorkingDirectory=/opt/dfeng-bot
+
+# All secrets/IDs/flags come from the gitignored production env file (chmod 0600).
+EnvironmentFile=/opt/dfeng-bot/.env.production
+# Ensure the src-layout package is importable.
+Environment=PYTHONPATH=/opt/dfeng-bot/src
+Environment=PYTHONUNBUFFERED=1
+
+ExecStart=/opt/dfeng-bot/.venv/bin/python -m dfeng_bot.main
+
+# Restart on failure/exit; the global error handler covers single bad updates.
+Restart=always
+RestartSec=5
+
+# --- Hardening (least privilege) --------------------------------------------
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+# Allow writing only where needed (none by default; bot writes no files).
+ReadWritePaths=
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target

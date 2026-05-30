@@ -1,0 +1,42 @@
+# =============================================================================
+# Dongfeng Experience Community bot — production compose (VOL-213)
+# =============================================================================
+# Single long-poll bot service. Loads all config/secrets from .env.production
+# (gitignored) and mounts the Google service-account JSON read-only.
+#
+#   cp .env.production.example .env.production   # then fill in real values
+#   # place the Google key locally (gitignored), e.g. ./secrets/google-creds.json
+#   docker compose up -d --build
+#   docker compose logs -f
+#
+# NEVER commit .env.production or the creds JSON. See docs/production-deployment.md.
+# -----------------------------------------------------------------------------
+services:
+  dfeng-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: dfeng-bot:latest
+    container_name: dfeng-bot
+    # All tokens/IDs/flags come from the gitignored production env file.
+    env_file:
+      - .env.production
+    # Mount the Google service-account JSON read-only. The left side is the local
+    # (gitignored) key path; the right side MUST match GOOGLE_APPLICATION_CREDENTIALS
+    # in .env.production (default /run/secrets/dfeng-google-creds.json).
+    volumes:
+      - ./secrets/google-creds.json:/run/secrets/dfeng-google-creds.json:ro
+    # Restart on crash/host reboot. The bot's global error handler keeps single
+    # bad updates from crashing; this covers process-level failures.
+    restart: unless-stopped
+    # Structured logs go to stdout/stderr -> `docker compose logs`. Bound so a
+    # log flood can't fill the disk (v1 alerting reads these — see docs).
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    # For WEBHOOK mode only (DFENG_RUN_MODE=webhook): publish the listen port and
+    # terminate TLS at a reverse proxy in front. Not needed for polling (default).
+    # ports:
+    #   - "8443:8443"
