@@ -22,6 +22,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from ..logging_setup import log_event
+from .. import metrics
 from . import onboarding, qualification, support_redirect
 from .base import get_config, thread_id_of
 
@@ -76,6 +77,22 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         thread_id=thread_id_of(update),
         has_text=bool(message.text),
         outcome="logged",
+    )
+
+    # --- VOL-212: low-noise launch-metric activity event ---------------------
+    # Non-intrusive instrumentation only (no feature behaviour). Emits one
+    # ``message_activity`` event per legitimate, non-consumed message so admins
+    # can compute weekly-active / owner-message / prospect-question metrics from
+    # the logs. PII-safe: logs telegram_id + thread_id + tag (if known) +
+    # an is_question heuristic; the message body is inspected for the heuristic
+    # only and never logged. Flag-gated (DFENG_METRICS_ACTIVITY, default ON).
+    counters = metrics.get_counters(context.application.bot_data)
+    metrics.log_activity(
+        update,
+        counters=counters,
+        tag=context.user_data.get(qualification.TAG_KEY),
+        thread_id=thread_id_of(update),
+        text=message.text,
     )
 
 

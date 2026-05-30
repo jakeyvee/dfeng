@@ -67,6 +67,7 @@ from telegram import Update
 from telegram.ext import ApplicationHandlerStop, ContextTypes
 
 from ..logging_setup import log_event
+from .. import metrics
 from .base import get_config, is_admin, thread_id_of
 
 # --- spam category labels ----------------------------------------------------
@@ -537,6 +538,7 @@ async def check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             action=action,
             outcome="removed",
         )
+        metrics.bump(context, "spam_action")
 
     # --- optional escalation: temporary restrict on repeated offenses --------
     if rules.restrict_after > 0 and user_id:

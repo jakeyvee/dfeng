@@ -72,6 +72,7 @@ from telegram import Update
 from telegram.ext import ApplicationHandlerStop, ContextTypes
 
 from ..logging_setup import log_event
+from .. import metrics
 from .base import get_config, is_admin, thread_id_of
 
 # --- action labels -----------------------------------------------------------
@@ -295,6 +296,7 @@ async def check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         muted=muted,
         outcome="actioned",
     )
+    metrics.bump(context, "spam_action")
     raise ApplicationHandlerStop
 
 

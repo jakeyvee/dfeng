@@ -59,6 +59,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from ..logging_setup import log_event
+from .. import metrics
 from .base import get_config, reply_in_thread, thread_id_of
 
 # Verbatim nudge copy (VOL-207). Stored as a constant; acceptance criteria assert
@@ -236,6 +237,7 @@ async def maybe_redirect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         thread_id=thread_id,
         outcome="redirected",
     )
+    metrics.bump(context, "support_redirect")
     return True
 
 

@@ -76,6 +76,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from ..logging_setup import log_event
+from .. import metrics
 from ..services.schema import TAGS
 from .base import get_config, reply_in_thread
 
@@ -299,6 +300,7 @@ async def _assign_prospect(
                 outcome="send_error",
             )
     log_event("qualification_complete", update, tag=TAG_PROSPECT, path=path, outcome="tagged")
+    metrics.bump(context, "qualification_complete")
     await _handoff_to_onboarding(update, context)
     return TAG_PROSPECT
 
@@ -319,6 +321,7 @@ async def _assign_owner(
             outcome="send_error",
         )
     log_event("qualification_complete", update, tag=tag, path=path, outcome="tagged")
+    metrics.bump(context, "qualification_complete")
     await _handoff_to_onboarding(update, context)
     return tag
 
@@ -404,6 +407,7 @@ async def start_qualification(
         member_username=getattr(member, "username", None),
         outcome="asked_role",
     )
+    metrics.bump(context, "qualification_started")
 
 
 async def cmd_qualify(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -423,6 +427,7 @@ async def cmd_qualify(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     _set_state(context, None)
     await _ask_role(update, context, prompt=ROLE_PROMPT)
     log_event("qualification_started", update, outcome="manual_retry")
+    metrics.bump(context, "qualification_started")
 
 
 # --- callback routing (called from messages.handle_callback_query) -----------

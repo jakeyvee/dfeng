@@ -79,6 +79,7 @@ from telegram import Update
 from telegram.ext import ApplicationHandlerStop, ContextTypes
 
 from ..logging_setup import log_event
+from .. import metrics
 from .base import get_config, is_admin, thread_id_of
 
 # --- link detection ----------------------------------------------------------
@@ -433,6 +434,7 @@ async def check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             action="delete",
             outcome="removed",
         )
+        metrics.bump(context, "spam_action")
 
     # Friendly notice (unless silent). Best-effort; failure must not crash.
     if not trust_cfg.silent:

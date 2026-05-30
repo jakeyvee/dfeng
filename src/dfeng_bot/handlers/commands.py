@@ -15,6 +15,7 @@ from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
 from ..logging_setup import log_event
+from .. import metrics
 from .base import is_admin, reply_in_thread, thread_id_of
 from .link_restrictions import cmd_trust
 from .onboarding import cmd_profile
@@ -144,6 +145,41 @@ async def cmd_reconcile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     await reply_in_thread(update, "\n".join(lines), context=context)
 
 
+async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Admin-only ``/stats`` — report process-lifetime metric counters (VOL-212).
+
+    Reports the cheaply-computable launch metrics tallied in-memory since the
+    process last started: onboarding completion (started/completed + rate),
+    support-redirect count, automated spam-removal count, and message-activity
+    totals (owner/prospect breakdown). These are PII-free integers and are NOT
+    historical — they reset on restart. For authoritative, time-windowed figures
+    see ``docs/metrics-and-reporting.md`` (structured logs + Sheets workbook).
+    """
+
+    if not is_admin(update, context):
+        log_event("cmd_stats", update, level=30, outcome="denied")
+        await reply_in_thread(update, "Not authorised.", context=context)
+        return
+
+    counters = metrics.get_counters(context.application.bot_data)
+    d = counters.as_dict()
+    rate = counters.onboarding_completion_rate()
+    rate_str = f"{rate * 100:.0f}%" if rate is not None else "n/a (none started)"
+
+    log_event("cmd_stats", update, outcome="ok", **d)
+    text = (
+        "Process-lifetime metrics (since last restart — NOT historical):\n"
+        f"• onboarding: {d['qualification_complete']}/{d['qualification_started']} "
+        f"completed ({rate_str})\n"
+        f"• support redirects: {d['support_redirect']}\n"
+        f"• automated spam removals: {d['spam_action']}\n"
+        f"• messages seen: {d['activity_total']} "
+        f"(owner {d['activity_owner']}, prospect {d['activity_prospect']})\n"
+        "\nFor historical / weekly figures see docs/metrics-and-reporting.md."
+    )
+    await reply_in_thread(update, text, context=context)
+
+
 def build_command_handlers() -> list[CommandHandler]:
     """Return the command handlers for registration.
 
@@ -171,4 +207,8 @@ def build_command_handlers() -> list[CommandHandler]:
         # print PII (phone/plate).
         CommandHandler("sheets_status", cmd_sheets_status),
         CommandHandler("reconcile", cmd_reconcile),
+        # VOL-212 admin-only launch metrics: /stats reports process-lifetime
+        # counters (onboarding completion, support redirects, automated spam
+        # removals, message activity). Gates on is_admin inside; PII-free.
+        CommandHandler("stats", cmd_stats),
     ]
