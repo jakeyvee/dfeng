@@ -26,6 +26,9 @@ ALLOWED_UPDATES = [
     Update.CALLBACK_QUERY,
     Update.CHAT_MEMBER,
     Update.MY_CHAT_MEMBER,
+    # VOL-202: invite-only links with creates_join_request=true emit join
+    # requests carrying the invite_link we map back to an entry source.
+    Update.CHAT_JOIN_REQUEST,
 ]
 
 

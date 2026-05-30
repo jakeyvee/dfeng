@@ -12,3 +12,7 @@ google-auth>=2.30,<3.0
 
 # Local development env loading (.env). In production prefer real secrets.
 python-dotenv>=1.0,<2.0
+
+# QR code generation for entry-source invite links (VOL-202). Used only by
+# scripts/generate_qr.py (lazy-imported there), not by the bot runtime.
+qrcode[pil]>=7.4,<9.0

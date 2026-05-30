@@ -118,6 +118,35 @@ class SheetsConfig:
 
 
 @dataclass(frozen=True)
+class InviteLinks:
+    """Named invite-link strings, one per link-based entry source (VOL-202).
+
+    Each holds the full ``https://t.me/+...`` invite link created via the Bot API
+    (``createChatInviteLink``) for that source. ``salesperson`` and
+    ``website placeholder`` are NOT link-tracked (see ``services/entry_source.py``
+    and ``docs/entry-links.md``), so they have no field here. Empty when unset —
+    the resolver falls back to the documented default. The canonical link ->
+    source mapping lives in ``services/entry_source.py``; these fields just expose
+    the configured strings for logging / tooling (e.g. the QR script).
+    """
+
+    showroom_qr: str = ""
+    roadshow_qr: str = ""
+    event_qr: str = ""
+    linktree: str = ""
+
+    def as_mapping(self) -> dict[str, str]:
+        """Return ``invite_link -> source_id`` for the configured (non-empty) links."""
+        pairs = {
+            self.showroom_qr: "showroom QR",
+            self.roadshow_qr: "roadshow QR",
+            self.event_qr: "event QR",
+            self.linktree: "Linktree",
+        }
+        return {link: source for link, source in pairs.items() if link}
+
+
+@dataclass(frozen=True)
 class RateLimits:
     """Flood-control thresholds consumed by the future flood-control ticket."""
 
@@ -165,6 +194,7 @@ class Config:
     # Structured sub-configs
     topics: Topics
     sheets: SheetsConfig
+    invite_links: InviteLinks
     admin_ids: list[int]
     trust_threshold: int
     rate_limits: RateLimits
@@ -209,6 +239,12 @@ class Config:
                 tab_name=_get_str("DFENG_SHEETS_TAB_NAME", "Members"),
                 credentials_path=_get_str("GOOGLE_APPLICATION_CREDENTIALS", ""),
             ),
+            invite_links=InviteLinks(
+                showroom_qr=_get_str("DFENG_INVITE_LINK_SHOWROOM", ""),
+                roadshow_qr=_get_str("DFENG_INVITE_LINK_ROADSHOW", ""),
+                event_qr=_get_str("DFENG_INVITE_LINK_EVENT", ""),
+                linktree=_get_str("DFENG_INVITE_LINK_LINKTREE", ""),
+            ),
             admin_ids=_get_int_list("DFENG_ADMIN_IDS", []),
             trust_threshold=_get_int("DFENG_TRUST_THRESHOLD", 3),
             rate_limits=RateLimits(
@@ -249,6 +285,9 @@ class Config:
             "run_mode": self.run_mode,
             "topics": self.topics.all_ids(),
             "admin_count": len(self.admin_ids),
+            # Count of configured named invite links only — never log the link
+            # strings themselves (they are join-grant secrets).
+            "invite_links_configured": len(self.invite_links.as_mapping()),
             "trust_threshold": self.trust_threshold,
             "features": {
                 "welcome": self.features.welcome,

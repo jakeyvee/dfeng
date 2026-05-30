@@ -19,6 +19,7 @@ from telegram import Update
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
+    ChatJoinRequestHandler,
     ChatMemberHandler,
     MessageHandler,
     filters,
@@ -27,6 +28,7 @@ from telegram.ext import (
 from ..config import Config
 from ..logging_setup import get_logger
 from .commands import build_command_handlers
+from .join_request import handle_chat_join_request
 from .membership import handle_chat_member_update, handle_new_chat_members
 from .messages import handle_callback_query, handle_message
 
@@ -61,6 +63,15 @@ def register_handlers(application: Application, config: Config) -> None:
     #    Requires the bot to be an admin and the chat_member update to be allowed.
     application.add_handler(
         ChatMemberHandler(handle_chat_member_update, ChatMemberHandler.CHAT_MEMBER),
+        group=GROUP_MEMBERSHIP,
+    )
+    # 3) chat_join_request updates (VOL-202): for invite-only links created with
+    #    creates_join_request=true, captures the invite_link to resolve the entry
+    #    source. Does not approve/decline (onboarding ticket owns that). Requires
+    #    Update.CHAT_JOIN_REQUEST in app.ALLOWED_UPDATES and the bot's Invite-via-
+    #    Link admin right.
+    application.add_handler(
+        ChatJoinRequestHandler(handle_chat_join_request),
         group=GROUP_MEMBERSHIP,
     )
 

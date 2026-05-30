@@ -17,6 +17,10 @@ service-account*.json
 *credentials*.json
 *-key.json
 
+# --- Generated QR codes (VOL-202) — encode real invite links, never commit. ---
+# scripts/generate_qr.py writes PNGs here; keep the dir via .gitkeep.
+assets/qr/*.png
+
 # --- Python ---
 __pycache__/
 *.py[cod]
