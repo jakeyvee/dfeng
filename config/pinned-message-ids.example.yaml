@@ -1,0 +1,98 @@
+# =============================================================================
+# Dongfeng Experience Community — pinned message IDs & branding apply notes
+# (TEMPLATE)
+# Linear ticket: VOL-201 (applies VOL-200 copy/branding into the VOL-196 group)
+# =============================================================================
+# This is a FILL-IN-THE-BLANKS template. After the operator applies the branding
+# and pins by following docs/apply-branding-runbook.md, copy this file to
+#     config/pinned-message-ids.yaml      (gitignored — see note at bottom)
+# and replace every <PLACEHOLDER> with the real value captured during the apply.
+#
+# WHAT THIS RECORDS: the numeric message_id of the pinned message in EACH of the
+# six forum topics, plus whether the group avatar has been applied. Bot/admins
+# reference these ids later (e.g. to re-pin, repost, or audit that the approved
+# copy is live). It complements config/group-setup.yaml (VOL-196), which records
+# group_id and per-topic thread_ids — keep both filled copies side by side.
+#
+# SOURCE OF TRUTH FOR THE COPY: content/pinned-messages.md (VOL-200). The pinned
+# text is NOT duplicated here — only its resulting message_id is recorded. The
+# `source_block` field below points at the exact heading in that file so an
+# auditor can confirm what was pinned.
+#
+# TOPIC NAMING / ENV MAPPING: identical to config/group-setup.example.yaml. The
+# six display-name topics pin to six generic bot env slots (see the `env:` field
+# and docs/telegram-setup.md "Topic → config mapping"). Do NOT rename env keys.
+# -----------------------------------------------------------------------------
+
+schema_version: 1
+ticket: VOL-201
+project: Dongfeng Experience Community
+
+# Cross-reference to the VOL-196 setup notes (filled, gitignored copy). The
+# group_id and per-topic thread_ids live there; recorded here only as a pointer.
+group:
+  title: "Dongfeng Experience Community"
+  group_id: "<GROUP_ID>"              # same value as config/group-setup.yaml; env: DFENG_GROUP_ID
+
+# --- Group avatar -----------------------------------------------------------
+# The avatar asset is stakeholder-supplied (square 512x512 PNG/JPG, see
+# docs/branding-assets.md). Set `applied: true` only once the real asset (NOT a
+# placeholder) is set as the group photo. If an interim mark was used, note it.
+avatar:
+  applied: false                     # set true once the final asset is the group photo
+  spec_ref: "docs/branding-assets.md#group-avatar-spec"
+  asset_supplied: false              # stakeholder dependency (Risk 1, branding-assets.md)
+  notes: "<e.g. 'final asset applied 2026-..' or 'interim mark pending final from brand team'>"
+
+# --- Pinned message id per topic, IN THE SAME ORDER AS THE GROUP -------------
+# message_id = the numeric id of the message you POSTED then PINNED in the topic.
+# Capture it from the bot's structured logs when it posts, or via @RawDataBot, or
+# from the message link (t.me/c/<...>/<thread_id>/<message_id>). thread_id is the
+# topic id from config/group-setup.yaml — repeated here for convenience only.
+topics:
+  - name: "Announcements & Events"
+    thread_id: "<THREAD_ID>"         # env: DFENG_TOPIC_ANNOUNCEMENTS
+    pinned_message_id: "<MESSAGE_ID>"
+    source_block: "content/pinned-messages.md#1-announcements--events"
+    pinned_as_admin: true            # MUST pin as admin — topic stays CLOSED (no member posting)
+    topic_remains_closed: true       # verify after pinning: members still cannot post
+
+  - name: "BOX Owners Lounge"
+    thread_id: "<THREAD_ID>"         # env: DFENG_TOPIC_WELCOME  (owner lounge #1)
+    pinned_message_id: "<MESSAGE_ID>"
+    source_block: "content/pinned-messages.md#2-box-owners-lounge"
+
+  - name: "007 Owners Club"
+    thread_id: "<THREAD_ID>"         # env: DFENG_TOPIC_QUALIFICATION  (owner lounge #2)
+    pinned_message_id: "<MESSAGE_ID>"
+    source_block: "content/pinned-messages.md#3-007-owners-club"
+
+  - name: "VIGO Owners Circle"
+    thread_id: "<THREAD_ID>"         # env: DFENG_TOPIC_EVENTS  (owner lounge #3)
+    pinned_message_id: "<MESSAGE_ID>"
+    source_block: "content/pinned-messages.md#4-vigo-owners-circle"
+
+  - name: "General Community Chat"
+    thread_id: "<THREAD_ID>"         # env: DFENG_TOPIC_GENERAL
+    pinned_message_id: "<MESSAGE_ID>"
+    source_block: "content/pinned-messages.md#5-general-community-chat"
+
+  - name: "Support & Assistance"
+    thread_id: "<THREAD_ID>"         # env: DFENG_TOPIC_SUPPORT
+    pinned_message_id: "<MESSAGE_ID>"
+    source_block: "content/pinned-messages.md#6-support--assistance"
+
+# --- Apply acceptance flags (mirror the runbook checklist) ------------------
+applied_checklist:
+  avatar_applied: false
+  all_six_topics_pinned: false
+  pins_visible_to_new_and_existing_members: false
+  announcements_posting_still_locked: false
+  message_ids_recorded: false
+
+# -----------------------------------------------------------------------------
+# SECURITY: the filled-in copy (config/pinned-message-ids.yaml) references the
+# real group id and topic ids. Keep it OUT of git — only this *.example.yaml
+# template (placeholders) is committed. Confirm the real file is matched by
+# .gitignore before committing anything.
+# -----------------------------------------------------------------------------
