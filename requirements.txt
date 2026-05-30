@@ -1,0 +1,14 @@
+# Dongfeng Experience Community bot — runtime dependencies
+#
+# Pin to compatible minor ranges. python-telegram-bot 21+ uses the async
+# Application / ContextTypes API that all handlers in this project rely on.
+
+python-telegram-bot[webhooks]>=21.0,<22.0
+
+# Google Sheets — NOT used in VOL-197, but later tickets (VOL-198/205/206)
+# persist qualification + PDPA records here. Listed now so the venv is ready.
+gspread>=6.0,<7.0
+google-auth>=2.30,<3.0
+
+# Local development env loading (.env). In production prefer real secrets.
+python-dotenv>=1.0,<2.0

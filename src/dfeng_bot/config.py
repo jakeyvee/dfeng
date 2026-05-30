@@ -1,0 +1,262 @@
+"""Typed runtime configuration loaded from environment variables.
+
+The :class:`Config` dataclass is the single source of truth for every tunable
+in the bot. It is built once at startup via :func:`Config.from_env` and then
+passed into the handler registration functions, so future tickets read settings
+from here instead of touching ``os.environ`` directly.
+
+Conventions for later tickets:
+    * Add new settings as typed dataclass fields with sane defaults.
+    * Document the matching env key in ``.env.example``.
+    * Never put secrets in logs (see ``logging_setup.py``).
+"""
+
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass, field
+from typing import Optional
+
+try:
+    # Optional: load a local .env when present. Safe no-op in production where
+    # python-dotenv may not be installed or no .env exists.
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except Exception:  # pragma: no cover - dotenv is a dev convenience only
+    pass
+
+
+class ConfigError(RuntimeError):
+    """Raised when required configuration is missing or malformed."""
+
+
+# --- env parsing helpers -----------------------------------------------------
+
+
+def _get_str(key: str, default: Optional[str] = None, *, required: bool = False) -> str:
+    value = os.environ.get(key, default)
+    if required and (value is None or value == ""):
+        raise ConfigError(f"Missing required environment variable: {key}")
+    return value if value is not None else ""
+
+
+def _get_int(key: str, default: Optional[int] = None, *, required: bool = False) -> int:
+    raw = os.environ.get(key)
+    if raw is None or raw == "":
+        if required:
+            raise ConfigError(f"Missing required environment variable: {key}")
+        return default if default is not None else 0
+    try:
+        return int(raw)
+    except ValueError as exc:
+        raise ConfigError(f"Environment variable {key} must be an integer, got {raw!r}") from exc
+
+
+def _get_bool(key: str, default: bool = False) -> bool:
+    raw = os.environ.get(key)
+    if raw is None or raw == "":
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _get_int_list(key: str, default: Optional[list[int]] = None) -> list[int]:
+    raw = os.environ.get(key, "")
+    if not raw.strip():
+        return list(default) if default else []
+    result: list[int] = []
+    for part in raw.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            result.append(int(part))
+        except ValueError as exc:
+            raise ConfigError(f"Environment variable {key} contains a non-integer: {part!r}") from exc
+    return result
+
+
+def _get_str_list(key: str, default: Optional[list[str]] = None) -> list[str]:
+    raw = os.environ.get(key, "")
+    if not raw.strip():
+        return list(default) if default else []
+    return [p.strip() for p in raw.split(",") if p.strip()]
+
+
+# --- structured sub-configs --------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Topics:
+    """The six community forum topics (``message_thread_id`` values)."""
+
+    welcome: int
+    general: int
+    qualification: int
+    support: int
+    events: int
+    announcements: int
+
+    def all_ids(self) -> list[int]:
+        return [
+            self.welcome,
+            self.general,
+            self.qualification,
+            self.support,
+            self.events,
+            self.announcements,
+        ]
+
+
+@dataclass(frozen=True)
+class SheetsConfig:
+    """Google Sheets target. Unused in VOL-197; wired up by later tickets."""
+
+    workbook_id: str
+    tab_name: str
+    credentials_path: str
+
+
+@dataclass(frozen=True)
+class RateLimits:
+    """Flood-control thresholds consumed by the future flood-control ticket."""
+
+    max_messages: int
+    window_seconds: int
+
+
+@dataclass(frozen=True)
+class SpamSettings:
+    """Anti-spam / link-restriction settings for the future anti-spam ticket."""
+
+    block_links: bool
+    allowed_domains: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class FeatureFlags:
+    """Toggles so subsystems can ship dark and be enabled per environment."""
+
+    welcome: bool
+    qualification: bool
+    sheets: bool
+    antispam: bool
+    flood_control: bool
+
+
+@dataclass(frozen=True)
+class WebhookConfig:
+    """Webhook runtime settings (only used when run_mode == 'webhook')."""
+
+    url: str
+    listen: str
+    port: int
+    secret_token: str
+
+
+@dataclass(frozen=True)
+class Config:
+    """Top-level immutable runtime configuration."""
+
+    # Core
+    bot_token: str
+    group_id: int
+
+    # Structured sub-configs
+    topics: Topics
+    sheets: SheetsConfig
+    admin_ids: list[int]
+    trust_threshold: int
+    rate_limits: RateLimits
+    spam: SpamSettings
+    features: FeatureFlags
+
+    # Runtime
+    run_mode: str  # "polling" | "webhook"
+    webhook: WebhookConfig
+
+    # Logging
+    log_level: str
+    log_format: str  # "kv" | "json"
+
+    @classmethod
+    def from_env(cls) -> "Config":
+        """Build a Config from the process environment, applying defaults."""
+
+        run_mode = _get_str("DFENG_RUN_MODE", "polling").strip().lower()
+        if run_mode not in {"polling", "webhook"}:
+            raise ConfigError(
+                f"DFENG_RUN_MODE must be 'polling' or 'webhook', got {run_mode!r}"
+            )
+
+        log_format = _get_str("DFENG_LOG_FORMAT", "kv").strip().lower()
+        if log_format not in {"kv", "json"}:
+            raise ConfigError("DFENG_LOG_FORMAT must be 'kv' or 'json'")
+
+        return cls(
+            bot_token=_get_str("TELEGRAM_BOT_TOKEN", required=True),
+            group_id=_get_int("DFENG_GROUP_ID", required=True),
+            topics=Topics(
+                welcome=_get_int("DFENG_TOPIC_WELCOME", 0),
+                general=_get_int("DFENG_TOPIC_GENERAL", 0),
+                qualification=_get_int("DFENG_TOPIC_QUALIFICATION", 0),
+                support=_get_int("DFENG_TOPIC_SUPPORT", 0),
+                events=_get_int("DFENG_TOPIC_EVENTS", 0),
+                announcements=_get_int("DFENG_TOPIC_ANNOUNCEMENTS", 0),
+            ),
+            sheets=SheetsConfig(
+                workbook_id=_get_str("DFENG_SHEETS_WORKBOOK_ID", ""),
+                tab_name=_get_str("DFENG_SHEETS_TAB_NAME", "Members"),
+                credentials_path=_get_str("GOOGLE_APPLICATION_CREDENTIALS", ""),
+            ),
+            admin_ids=_get_int_list("DFENG_ADMIN_IDS", []),
+            trust_threshold=_get_int("DFENG_TRUST_THRESHOLD", 3),
+            rate_limits=RateLimits(
+                max_messages=_get_int("DFENG_RATE_LIMIT_MESSAGES", 5),
+                window_seconds=_get_int("DFENG_RATE_LIMIT_WINDOW_SECONDS", 10),
+            ),
+            spam=SpamSettings(
+                block_links=_get_bool("DFENG_SPAM_BLOCK_LINKS", True),
+                allowed_domains=_get_str_list("DFENG_SPAM_ALLOWED_DOMAINS", []),
+            ),
+            features=FeatureFlags(
+                welcome=_get_bool("DFENG_FEATURE_WELCOME", True),
+                qualification=_get_bool("DFENG_FEATURE_QUALIFICATION", True),
+                sheets=_get_bool("DFENG_FEATURE_SHEETS", False),
+                antispam=_get_bool("DFENG_FEATURE_ANTISPAM", False),
+                flood_control=_get_bool("DFENG_FEATURE_FLOOD_CONTROL", False),
+            ),
+            run_mode=run_mode,
+            webhook=WebhookConfig(
+                url=_get_str("DFENG_WEBHOOK_URL", ""),
+                listen=_get_str("DFENG_WEBHOOK_LISTEN", "0.0.0.0"),
+                port=_get_int("DFENG_WEBHOOK_PORT", 8443),
+                secret_token=_get_str("DFENG_WEBHOOK_SECRET_TOKEN", ""),
+            ),
+            log_level=_get_str("DFENG_LOG_LEVEL", "INFO").upper(),
+            log_format=log_format,
+        )
+
+    # --- convenience ---------------------------------------------------------
+
+    def is_admin(self, telegram_id: Optional[int]) -> bool:
+        return telegram_id is not None and telegram_id in self.admin_ids
+
+    def safe_summary(self) -> dict[str, object]:
+        """Loggable view of config with secrets redacted."""
+        return {
+            "group_id": self.group_id,
+            "run_mode": self.run_mode,
+            "topics": self.topics.all_ids(),
+            "admin_count": len(self.admin_ids),
+            "trust_threshold": self.trust_threshold,
+            "features": {
+                "welcome": self.features.welcome,
+                "qualification": self.features.qualification,
+                "sheets": self.features.sheets,
+                "antispam": self.features.antispam,
+                "flood_control": self.features.flood_control,
+            },
+            "log_level": self.log_level,
+            "log_format": self.log_format,
+        }

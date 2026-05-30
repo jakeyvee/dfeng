@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dfeng-bot"
+version = "0.1.0"
+description = "Telegram bot runtime for the Dongfeng Experience Community supergroup"
+requires-python = ">=3.11"
+dependencies = [
+    "python-telegram-bot[webhooks]>=21.0,<22.0",
+    "gspread>=6.0,<7.0",
+    "google-auth>=2.30,<3.0",
+    "python-dotenv>=1.0,<2.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"
