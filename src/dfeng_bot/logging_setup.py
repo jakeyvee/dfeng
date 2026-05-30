@@ -155,6 +155,7 @@ def _classify_update(update: "Update") -> str:
 def log_event(
     action: str,
     update: Optional["Update"] = None,
+    /,
     *,
     level: int = logging.INFO,
     **fields: Any,
@@ -163,7 +164,12 @@ def log_event(
 
     Args:
         action: Short verb/identifier for what happened (e.g. ``"ping"``,
-            ``"new_member"``, ``"message_received"``).
+            ``"new_member"``, ``"message_received"``). Positional-only so that a
+            caller may also pass an ``action=`` STRUCTURED FIELD (e.g.
+            ``action="deleted"``) without colliding with this parameter — the
+            field then lands in ``**fields`` and wins in the logged output. This
+            is relied on by the moderation/persistence handlers
+            (antispam/flood/link/onboarding) which log an ``action=<verb>`` field.
         update: Optional Telegram update; standard context is auto-extracted.
         level: Logging level (default INFO).
         **fields: Extra structured key=value context (outcome, counts, etc.).
