@@ -30,6 +30,7 @@ from ..logging_setup import get_logger
 from . import antispam, flood_control, link_restrictions
 from .commands import build_command_handlers
 from .join_request import handle_chat_join_request
+from .moderation import build_moderation_handlers
 from .membership import handle_chat_member_update, handle_new_chat_members
 from .messages import handle_callback_query, handle_message
 
@@ -102,6 +103,14 @@ def register_handlers(application: Application, config: Config) -> None:
 
     # --- Commands (/start, /ping, /health, future admin commands) ------------
     for handler in build_command_handlers():
+        application.add_handler(handler, group=GROUP_COMMANDS)
+
+    # --- Admin moderation commands (VOL-211) ---------------------------------
+    # /pin /del /delete /mute /unmute /ban /unban /approve /modhelp. Each gates on
+    # is_admin internally (rejections logged) and handles missing-permission API
+    # errors gracefully. Registered in GROUP_COMMANDS alongside the core commands,
+    # mirroring build_command_handlers — app.py is untouched.
+    for handler in build_moderation_handlers():
         application.add_handler(handler, group=GROUP_COMMANDS)
 
     # --- Membership: new-member joins ---------------------------------------
