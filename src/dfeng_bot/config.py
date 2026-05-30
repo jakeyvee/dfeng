@@ -258,6 +258,7 @@ class FeatureFlags:
 
     welcome: bool
     qualification: bool
+    optional_capture: bool
     sheets: bool
     antispam: bool
     flood_control: bool
@@ -357,6 +358,7 @@ class Config:
             features=FeatureFlags(
                 welcome=_get_bool("DFENG_FEATURE_WELCOME", True),
                 qualification=_get_bool("DFENG_FEATURE_QUALIFICATION", True),
+                optional_capture=_get_bool("DFENG_FEATURE_OPTIONAL_CAPTURE", True),
                 sheets=_get_bool("DFENG_FEATURE_SHEETS", False),
                 antispam=_get_bool("DFENG_FEATURE_ANTISPAM", False),
                 flood_control=_get_bool("DFENG_FEATURE_FLOOD_CONTROL", False),
@@ -421,6 +423,7 @@ class Config:
             "features": {
                 "welcome": self.features.welcome,
                 "qualification": self.features.qualification,
+                "optional_capture": self.features.optional_capture,
                 "sheets": self.features.sheets,
                 "antispam": self.features.antispam,
                 "flood_control": self.features.flood_control,

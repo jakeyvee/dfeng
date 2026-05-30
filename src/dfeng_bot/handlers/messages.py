@@ -22,7 +22,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from ..logging_setup import log_event
-from . import qualification, support_redirect
+from . import onboarding, qualification, support_redirect
 from .base import get_config, thread_id_of
 
 
@@ -60,6 +60,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         if await qualification.advance(update, context):
             return
 
+    # --- EXTENSION POINT: PDPA-gated optional profile capture (VOL-205) -------
+    # Text-answer fallback for the phone/plate steps. Only acts when the user is
+    # mid-capture (profile_state in user_data awaiting a typed field); otherwise
+    # a no-op so normal chat falls through. Consumes the update when it advanced
+    # the capture. Qualification's advance() runs first and they use disjoint
+    # states, so at most one consumes any given message.
+    if config.features.optional_capture:
+        if await onboarding.advance(update, context):
+            return
+
     log_event(
         "message_received",
         update,
@@ -92,6 +102,13 @@ async def handle_callback_query(
     config = get_config(context)
     if config.features.qualification and qualification.owns_callback(query.data):
         await qualification.handle_callback(update, context)
+        return
+
+    # --- ROUTE: PDPA / profile callbacks ("pdpa:" / "profile:" ns, VOL-205) ---
+    # Optional-capture owns these namespaces (distinct from qualification's
+    # "qual:"). Route them here and let any other callbacks fall through.
+    if config.features.optional_capture and onboarding.owns_callback(query.data):
+        await onboarding.handle_callback(update, context)
         return
 
     log_event("callback_query", update, data=query.data, outcome="ack_v1")

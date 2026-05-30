@@ -299,6 +299,7 @@ async def _assign_prospect(
                 outcome="send_error",
             )
     log_event("qualification_complete", update, tag=TAG_PROSPECT, path=path, outcome="tagged")
+    await _handoff_to_onboarding(update, context)
     return TAG_PROSPECT
 
 
@@ -318,7 +319,35 @@ async def _assign_owner(
             outcome="send_error",
         )
     log_event("qualification_complete", update, tag=tag, path=path, outcome="tagged")
+    await _handoff_to_onboarding(update, context)
     return tag
+
+
+async def _handoff_to_onboarding(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """Hand off to PDPA-gated optional capture + persistence (VOL-205).
+
+    Called at the clean end-of-flow point, AFTER the tag is stashed in
+    ``user_data[TAG_KEY]``. Mirrors the welcome -> qualification hand-off:
+    qualification depends on onboarding one-directionally (onboarding never
+    imports qualification at module load), so the import is LOCAL to avoid any
+    circular-import risk. Never raises into the flow — a failed hand-off must not
+    undo a successful tagging.
+    """
+
+    try:
+        from . import onboarding
+
+        await onboarding.start_profile_capture(update, context)
+    except Exception as exc:  # noqa: BLE001 - tagging already succeeded; don't unwind
+        log_event(
+            "onboarding_handoff_failed",
+            update,
+            level=40,
+            error_type=type(exc).__name__,
+            outcome="handoff_error",
+        )
 
 
 async def _ask_role(update: Update, context: ContextTypes.DEFAULT_TYPE, *, prompt: str) -> None:
