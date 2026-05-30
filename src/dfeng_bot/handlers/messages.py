@@ -22,6 +22,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from ..logging_setup import log_event
+from . import support_redirect
 from .base import get_config, thread_id_of
 
 
@@ -48,8 +49,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         # if await flood.check(update, context): return
         pass
 
-    # --- EXTENSION POINT: support redirection --------------------------------
-    # if await support.maybe_redirect(update, context): return
+    # --- EXTENSION POINT: support redirection (VOL-207) ----------------------
+    # Observer: nudges support-flavoured messages toward the Support topic but
+    # does NOT consume the update — qualification + logging still run below.
+    await support_redirect.maybe_redirect(update, context)
 
     # --- EXTENSION POINT: qualification flow ---------------------------------
     if config.features.qualification:

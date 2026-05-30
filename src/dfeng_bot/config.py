@@ -171,6 +171,7 @@ class FeatureFlags:
     sheets: bool
     antispam: bool
     flood_control: bool
+    support_redirect: bool
 
 
 @dataclass(frozen=True)
@@ -261,6 +262,7 @@ class Config:
                 sheets=_get_bool("DFENG_FEATURE_SHEETS", False),
                 antispam=_get_bool("DFENG_FEATURE_ANTISPAM", False),
                 flood_control=_get_bool("DFENG_FEATURE_FLOOD_CONTROL", False),
+                support_redirect=_get_bool("DFENG_FEATURE_SUPPORT_REDIRECT", True),
             ),
             run_mode=run_mode,
             webhook=WebhookConfig(
@@ -295,6 +297,7 @@ class Config:
                 "sheets": self.features.sheets,
                 "antispam": self.features.antispam,
                 "flood_control": self.features.flood_control,
+                "support_redirect": self.features.support_redirect,
             },
             "log_level": self.log_level,
             "log_format": self.log_format,

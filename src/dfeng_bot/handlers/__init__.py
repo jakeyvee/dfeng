@@ -99,7 +99,9 @@ def register_handlers(application: Application, config: Config) -> None:
     #     welcome.send_welcome (no new handler needed; rides the join handlers)
     #   * qualification (VOL-204)         -> messages + callback queries
     #   * sheets persistence (VOL-198/..) -> services/sheets.py
-    #   * support redirection             -> messages handler
+    #   * support redirection (VOL-207)   -> DONE: messages.handle_message ->
+    #     support_redirect.maybe_redirect (observer; rides the generic message
+    #     handler, no new handler needed)
 
     log.info(
         "handlers_registered",
