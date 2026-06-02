@@ -14,6 +14,26 @@ bottom; the acceptance checklist at the end confirms "done".
 
 ## 1. Create the workbook and Members tab
 
+> **The live storage is a _Google Sheet_** (the bot writes via the Sheets API).
+> You can't commit a Google Sheet to git, so the repo ships a ready-made **Excel
+> template** you upload to Drive and convert.
+>
+> **Fast path (recommended) — use the template:**
+> [`config/member-workbook-template.xlsx`](../config/member-workbook-template.xlsx)
+> (generated from the schema, so the header already matches exactly):
+> 1. Sign in to Google Drive as the **Dongfeng Experience / Level 3 Management**
+>    account and **upload** the `.xlsx`.
+> 2. Open it → **File → Save as Google Sheets** (or right-click → *Open with →
+>    Google Sheets*). The `Members` tab + the 12-column header come pre-filled;
+>    the `Reference` tab documents the enums and rules. (You may delete the
+>    original `.xlsx` from Drive afterwards.)
+> 3. Confirm the tab is named exactly **`Members`**, then continue at **§4
+>    (share with the service account)** and **§1.6 (copy the workbook id)** below.
+> 4. Regenerate the template anytime with
+>    `python scripts/make_member_workbook_template.py`.
+>
+> Prefer to build it by hand? Follow the manual steps below instead.
+
 1. Sign in to Google Drive as the **Dongfeng Experience / Level 3 Management**
    account. The workbook must be **owned by this account** (not a personal one).
 2. Create a new Google Sheet. Name it e.g. `Dongfeng Experience — Members`.
