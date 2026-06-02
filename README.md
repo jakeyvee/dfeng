@@ -57,8 +57,10 @@ Do them roughly in this order. (Owner = who should do it.)
 
 1. **Create the bot account** — in Telegram, message **@BotFather**, run
    `/newbot`, and copy the **bot token**. *(Owner: technical/L3)*
-2. **Create the supergroup + six topics** — follow **`docs/telegram-setup.md`**:
-   turn on Topics, create the six topics with exact names, make it private/
+2. **Create the supergroup + topics** — follow **`docs/telegram-setup.md`**:
+   turn on Topics, create the **five** topics with exact names (General Community
+   Chat uses Telegram's built-in **General** topic → `DFENG_TOPIC_GENERAL=1`),
+   make it private/
    invite-only, lock **Announcements & Events** to admins, and add the bot as an
    admin with the listed rights. Record the **group ID** and the **six topic
    (thread) IDs** into `config/group-setup.yaml`. *(Owner: technical/L3)*

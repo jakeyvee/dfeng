@@ -64,18 +64,27 @@ lock it down:
 1. Group → title → **Edit** → toggle **Topics** **ON**
    (Desktop: *Edit → Topics*). Confirm.
 2. Telegram converts the chat to a **forum supergroup** and auto-creates a
-   pinned **General** topic (this is the built-in topic with
-   `message_thread_id = 1`). It is **NOT** one of our six topics.
-   - Recommended: **rename General** to one of our topics is NOT advised because
-     General behaves specially (it cannot be deleted and is always shown first).
-     Instead, leave General as a lightweight landing/rules topic, or **close**
-     it (admin-only) so chatter happens in the six purpose-built topics below.
+   pinned **General** topic (the built-in topic; its `message_thread_id` is
+   **`1`**, and messages posted in it report `thread_id = null`).
+   - **This deployment uses the built-in General topic AS "General Community
+     Chat".** So you do **NOT** create a separate General Community Chat topic —
+     you create only the **five** topics in §4 and use General for community
+     chat. General behaves specially (it cannot be deleted and is always shown
+     first), which suits the open community-chat space.
+   - Pin the **General Community Chat** copy from `content/pinned-messages.md`
+     in this built-in General topic (see `docs/apply-branding-runbook.md`).
+   - In config, set **`DFENG_TOPIC_GENERAL=1`** (the General topic's id).
 
 > Record in setup notes: `forum_topics_enabled: true`.
 
 ---
 
-## 4. Create the six topics — EXACT names, in order
+## 4. Create the five topics — EXACT names, in order
+
+> **General Community Chat is NOT created here** — this deployment uses the
+> built-in **General** topic (§3) as the General Community Chat (`thread_id 1`,
+> `DFENG_TOPIC_GENERAL=1`). Create only the five topics below; together with the
+> built-in General they form the six community spaces.
 
 Create each topic via the topics list → **＋ / Create topic** (Desktop:
 right panel → **Create Topic**). Use these **exact** names and this **order**:
@@ -84,8 +93,7 @@ right panel → **Create Topic**). Use these **exact** names and this **order**:
 2. `BOX Owners Lounge`
 3. `007 Owners Club`
 4. `VIGO Owners Circle`
-5. `General Community Chat`
-6. `Support & Assistance`
+5. `Support & Assistance`
 
 > Tip: names must match **character-for-character** (including the `&` and the
 > leading `007`). Copy-paste them from this list to avoid typos.
@@ -115,7 +123,7 @@ exposes six **generic** env slots. Pin each display-name topic to one env slot �
 | 2 | BOX Owners Lounge           | `DFENG_TOPIC_WELCOME`        | `topics.welcome`        |
 | 3 | 007 Owners Club             | `DFENG_TOPIC_QUALIFICATION`  | `topics.qualification`  |
 | 4 | VIGO Owners Circle          | `DFENG_TOPIC_EVENTS`         | `topics.events`         |
-| 5 | General Community Chat      | `DFENG_TOPIC_GENERAL`        | `topics.general`        |
+| 5 | General Community Chat (= built-in **General**, `thread_id 1`) | `DFENG_TOPIC_GENERAL` → `1` | `topics.general` |
 | 6 | Support & Assistance        | `DFENG_TOPIC_SUPPORT`        | `topics.support`        |
 
 > The pairing is arbitrary but **fixed** — every later ticket and the setup
@@ -295,7 +303,7 @@ separate future ticket via `GROUP_PREFILTER`.)
    DFENG_TOPIC_WELCOME=<BOX Owners Lounge thread_id>
    DFENG_TOPIC_QUALIFICATION=<007 Owners Club thread_id>
    DFENG_TOPIC_EVENTS=<VIGO Owners Circle thread_id>
-   DFENG_TOPIC_GENERAL=<General Community Chat thread_id>
+   DFENG_TOPIC_GENERAL=1   # built-in General topic = General Community Chat
    DFENG_TOPIC_SUPPORT=<Support & Assistance thread_id>
    DFENG_ADMIN_IDS=<id1>,<id2>,<id3>
    ```
@@ -361,12 +369,14 @@ Tick each before closing VOL-196:
 - [ ] Group is **Private** — no public username, `t.me/<name>` does not resolve,
       **not discoverable** in search.
 - [ ] **Topics / forum mode is ON**.
-- [ ] Exactly **six** topics exist with the **exact** names, in order:
+- [ ] **Five** topics created with the **exact** names, in order:
       `Announcements & Events`, `BOX Owners Lounge`, `007 Owners Club`,
-      `VIGO Owners Circle`, `General Community Chat`, `Support & Assistance`.
+      `VIGO Owners Circle`, `Support & Assistance` — **plus** the built-in
+      **General** topic used as General Community Chat (`DFENG_TOPIC_GENERAL=1`).
 - [ ] **Announcements & Events** is a **closed topic**: members **cannot post**
       but **can react**; admins can post.
-- [ ] Members **can post** in the other **five** topics and react in all six.
+- [ ] Members **can post** in the other open topics (BOX / 007 / VIGO lounges,
+      Support & Assistance, and the built-in General) and react in all of them.
 - [ ] **Invite-only**: primary invite link has **Approve New Members ON**
       (join requests require approval).
 - [ ] Default member permissions set (Send Messages ON, Add Reactions ON,
@@ -400,4 +410,6 @@ Tick each before closing VOL-196:
    `chat_join_request` handling in code (lands with onboarding, VOL-203); until
    then admins approve manually.
 5. **The built-in "General" topic** (`thread_id = 1`) is auto-created, always
-   shown first, and cannot be deleted — it is **not** one of the six topics.
+   shown first, and cannot be deleted. **This deployment uses it as the
+   "General Community Chat"** (`DFENG_TOPIC_GENERAL=1`); only **five** topics are
+   created (§4). Messages posted in General report `thread_id = null`.

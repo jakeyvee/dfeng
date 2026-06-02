@@ -98,6 +98,10 @@ Real VIGO ownership talk — led by owners, open to anyone exploring the VIGO �
 
 ## 5. General Community Chat
 
+> Applied to Telegram's **built-in General topic** (`thread_id 1`,
+> `DFENG_TOPIC_GENERAL=1`) — this deployment uses General as the General
+> Community Chat rather than a separate created topic.
+
 **Pinned message**
 
 ```

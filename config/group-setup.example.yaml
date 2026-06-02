@@ -45,12 +45,13 @@ group:
   primary_invite_link: "<INVITE_LINK_OR_BLANK>"
   slow_mode_seconds: 0              # optional; 0 = off. Raise to throttle chat.
 
-# --- The six forum topics, IN CREATION ORDER --------------------------------
+# --- The community topics ---------------------------------------------------
 # thread_id is the message_thread_id of the topic. Capture each by posting a
 # message in the topic and reading `thread_id=<n>` from the bot logs, or via
-# @RawDataBot. The pinned "General" topic that Telegram auto-creates has
-# thread_id 1 and is NOT one of the six below — keep it hidden/closed or repurpose
-# (see runbook).
+# @RawDataBot. NOTE: "General Community Chat" is NOT a created topic — this
+# deployment uses Telegram's built-in "General" topic (thread_id 1) for it, so
+# only FIVE topics are created. The General entry below records thread_id 1 for
+# completeness (DFENG_TOPIC_GENERAL=1).
 topics:
   - name: "Announcements & Events"
     thread_id: "<THREAD_ID>"        # env: DFENG_TOPIC_ANNOUNCEMENTS
@@ -77,7 +78,8 @@ topics:
     reactions: enabled
 
   - name: "General Community Chat"
-    thread_id: "<THREAD_ID>"        # env: DFENG_TOPIC_GENERAL
+    builtin_general: true           # NOT created — this IS Telegram's built-in General topic
+    thread_id: 1                    # env: DFENG_TOPIC_GENERAL  (built-in General = 1)
     closed: false
     posting: members
     reactions: enabled
@@ -143,7 +145,7 @@ env_mapping:
   DFENG_TOPIC_WELCOME: "<THREAD_ID of 'BOX Owners Lounge'>"
   DFENG_TOPIC_QUALIFICATION: "<THREAD_ID of '007 Owners Club'>"
   DFENG_TOPIC_EVENTS: "<THREAD_ID of 'VIGO Owners Circle'>"
-  DFENG_TOPIC_GENERAL: "<THREAD_ID of 'General Community Chat'>"
+  DFENG_TOPIC_GENERAL: "1"   # built-in General topic = General Community Chat
   DFENG_TOPIC_SUPPORT: "<THREAD_ID of 'Support & Assistance'>"
   DFENG_ADMIN_IDS: "<ID1>,<ID2>,<ID3>"
   # TELEGRAM_BOT_TOKEN stays in .env / secret manager only — never in this file.

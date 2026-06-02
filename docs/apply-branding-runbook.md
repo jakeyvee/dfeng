@@ -39,9 +39,10 @@ resulting pinned message IDs for the bot/admins.
   **verbatim** from the matching fenced block. Each step below names the exact
   source heading.
 - Have the **avatar asset** ready if supplied (see step 1 / the dependency note).
-- Confirm you can see the six topics in the order:
+- Confirm you can see the five created topics plus the built-in **General**:
   1. `Announcements & Events`  2. `BOX Owners Lounge`  3. `007 Owners Club`
-  4. `VIGO Owners Circle`  5. `General Community Chat`  6. `Support & Assistance`
+  4. `VIGO Owners Circle`  5. `Support & Assistance`  + the built-in **General**
+  topic (used as **General Community Chat**, `thread_id 1`).
 
 > **Golden rule on copy fidelity:** every pinned block must match
 > `content/pinned-messages.md` **character-for-character**, including the 🧡
@@ -192,19 +193,23 @@ Model-lounge pin. Confirm the required pattern reads, verbatim:
 
 ---
 
-## 7. Topic 5 — General Community Chat
+## 7. General Community Chat — the built-in **General** topic
 
+> **This deployment uses Telegram's built-in General topic as General Community
+> Chat** (`thread_id 1`, `DFENG_TOPIC_GENERAL=1`). There is no separate topic to
+> create — pin the General Community Chat copy in the built-in **General** topic.
+>
 > **Source copy:** `content/pinned-messages.md` → **"## 5. General Community
 > Chat"** → the fenced **Pinned message** block (starts `Welcome to General
 > Community Chat 🧡`). Optional description: that section's **Topic description**
 > block.
 
-1. Open the **General Community Chat** topic.
+1. Open the built-in **General** topic (always shown first in the topic list).
 2. (Optional) Set the topic description from the source **Topic description** block.
 3. Paste the approved **Pinned message** block verbatim and send.
-4. **Pin** it within this topic.
+4. **Pin** it within the General topic.
 
-> Record: `topics[4].pinned_message_id`.
+> Record: `topics[4].pinned_message_id` (this is the built-in General, `thread_id 1`).
 
 ---
 
