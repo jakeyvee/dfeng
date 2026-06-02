@@ -95,11 +95,12 @@ Transcribe from `config/group-setup.yaml` (VOL-196), minding the topic mapping
 | # | Topic (display name)   | Env key                     |
 |---|------------------------|-----------------------------|
 | 1 | Announcements & Events | `DFENG_TOPIC_ANNOUNCEMENTS`  |
-| 2 | BOX Owners Lounge      | `DFENG_TOPIC_WELCOME`        |
-| 3 | 007 Owners Club        | `DFENG_TOPIC_QUALIFICATION`  |
-| 4 | VIGO Owners Circle     | `DFENG_TOPIC_EVENTS`         |
-| 5 | General Community Chat | `DFENG_TOPIC_GENERAL`        |
+| 2 | BOX Owners Lounge      | `DFENG_TOPIC_BOX`           |
+| 3 | 007 Owners Club        | `DFENG_TOPIC_007`           |
+| 4 | VIGO Owners Circle     | `DFENG_TOPIC_VIGO`          |
+| 5 | General Community Chat | `DFENG_TOPIC_GENERAL` (= `1`, built-in General) |
 | 6 | Support & Assistance   | `DFENG_TOPIC_SUPPORT`        |
+| – | (welcome post target)  | `DFENG_WELCOME_TOPIC` (`0` = General) |
 
 Then set the Sheets workbook id + creds path, `DFENG_ADMIN_IDS`, trust threshold,
 spam/flood thresholds, and confirm the **launch feature flags** (§4).

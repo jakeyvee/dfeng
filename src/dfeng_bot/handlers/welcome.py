@@ -12,10 +12,10 @@ land in the group's "General" topic (``message_thread_id`` 1) — Telegram does
 not let a join originate inside an arbitrary topic. So by default we reply where
 the join is observed (the General topic), via :func:`reply_in_thread`.
 
-If the deployment configures a dedicated welcome topic (``config.topics.welcome``
-> 0) we PREFER posting the welcome there instead, so onboarding lives in a
-predictable place rather than the noisy General topic. This is done by sending
-directly to ``config.group_id`` with that ``message_thread_id``.
+If the deployment configures a dedicated welcome topic (``config.welcome_topic``
+> 0, env ``DFENG_WELCOME_TOPIC``) we PREFER posting the welcome there instead, so
+onboarding lives in a predictable place rather than the noisy General topic. This
+is done by sending directly to ``config.group_id`` with that ``message_thread_id``.
 
 Dedupe
 ------
@@ -125,7 +125,7 @@ async def send_welcome(
         )
         return
 
-    welcome_topic = config.topics.welcome
+    welcome_topic = config.welcome_topic
     try:
         if welcome_topic and config.group_id:
             # Prefer the dedicated welcome topic when configured. Joins are

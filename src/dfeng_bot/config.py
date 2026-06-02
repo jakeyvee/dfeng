@@ -131,23 +131,28 @@ def _spam_list(yaml_rules: dict, yaml_key: str, env_key: str) -> list[str]:
 
 @dataclass(frozen=True)
 class Topics:
-    """The six community forum topics (``message_thread_id`` values)."""
+    """The community forum topics (``message_thread_id`` values).
 
-    welcome: int
-    general: int
-    qualification: int
-    support: int
-    events: int
-    announcements: int
+    Field names match the real topics. ``general`` is Telegram's built-in
+    General topic (id 1), used as the General Community Chat. Where the welcome
+    message is posted is controlled separately by ``Config.welcome_topic``.
+    """
+
+    announcements: int  # Announcements & Events
+    box: int            # BOX Owners Lounge
+    model_007: int      # 007 Owners Club
+    vigo: int           # VIGO Owners Circle
+    general: int        # General Community Chat (built-in General, id 1)
+    support: int        # Support & Assistance
 
     def all_ids(self) -> list[int]:
         return [
-            self.welcome,
-            self.general,
-            self.qualification,
-            self.support,
-            self.events,
             self.announcements,
+            self.box,
+            self.model_007,
+            self.vigo,
+            self.general,
+            self.support,
         ]
 
 
@@ -318,6 +323,9 @@ class Config:
 
     # Structured sub-configs
     topics: Topics
+    # Where to post the welcome message. 0 = post where the member lands (the
+    # built-in General topic). Set to a thread id to force a specific topic.
+    welcome_topic: int
     sheets: SheetsConfig
     invite_links: InviteLinks
     admin_ids: list[int]
@@ -354,13 +362,14 @@ class Config:
             bot_token=_get_str("TELEGRAM_BOT_TOKEN", required=True),
             group_id=_get_int("DFENG_GROUP_ID", required=True),
             topics=Topics(
-                welcome=_get_int("DFENG_TOPIC_WELCOME", 0),
-                general=_get_int("DFENG_TOPIC_GENERAL", 0),
-                qualification=_get_int("DFENG_TOPIC_QUALIFICATION", 0),
-                support=_get_int("DFENG_TOPIC_SUPPORT", 0),
-                events=_get_int("DFENG_TOPIC_EVENTS", 0),
                 announcements=_get_int("DFENG_TOPIC_ANNOUNCEMENTS", 0),
+                box=_get_int("DFENG_TOPIC_BOX", 0),
+                model_007=_get_int("DFENG_TOPIC_007", 0),
+                vigo=_get_int("DFENG_TOPIC_VIGO", 0),
+                general=_get_int("DFENG_TOPIC_GENERAL", 0),
+                support=_get_int("DFENG_TOPIC_SUPPORT", 0),
             ),
+            welcome_topic=_get_int("DFENG_WELCOME_TOPIC", 0),
             sheets=SheetsConfig(
                 workbook_id=_get_str("DFENG_SHEETS_WORKBOOK_ID", ""),
                 tab_name=_get_str("DFENG_SHEETS_TAB_NAME", "Members"),

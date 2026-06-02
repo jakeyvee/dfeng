@@ -113,21 +113,22 @@ Write each id into the matching slot in `config/group-setup.yaml`.
 
 ### Topic → config mapping (IMPORTANT)
 
-The bot's `Config` (`src/dfeng_bot/config.py`) predates these display names and
-exposes six **generic** env slots. Pin each display-name topic to one env slot —
-**do not rename the env keys**, only fill in the thread ids:
+The bot's `Config` (`src/dfeng_bot/config.py`) reads one env var per topic — the
+key names match the topics. Fill in each topic's thread id:
 
 | # | Topic (display name)        | Bot env var (`.env`)         | Config field            |
 |---|-----------------------------|------------------------------|-------------------------|
 | 1 | Announcements & Events      | `DFENG_TOPIC_ANNOUNCEMENTS`  | `topics.announcements`  |
-| 2 | BOX Owners Lounge           | `DFENG_TOPIC_WELCOME`        | `topics.welcome`        |
-| 3 | 007 Owners Club             | `DFENG_TOPIC_QUALIFICATION`  | `topics.qualification`  |
-| 4 | VIGO Owners Circle          | `DFENG_TOPIC_EVENTS`         | `topics.events`         |
+| 2 | BOX Owners Lounge           | `DFENG_TOPIC_BOX`            | `topics.box`            |
+| 3 | 007 Owners Club             | `DFENG_TOPIC_007`            | `topics.model_007`      |
+| 4 | VIGO Owners Circle          | `DFENG_TOPIC_VIGO`           | `topics.vigo`           |
 | 5 | General Community Chat (= built-in **General**, `thread_id 1`) | `DFENG_TOPIC_GENERAL` → `1` | `topics.general` |
 | 6 | Support & Assistance        | `DFENG_TOPIC_SUPPORT`        | `topics.support`        |
 
-> The pairing is arbitrary but **fixed** — every later ticket and the setup
-> template (`config/group-setup.example.yaml`) assume exactly this mapping.
+> Where the **welcome** message is posted is a separate setting,
+> **`DFENG_WELCOME_TOPIC`** (not one of the six topics): `0` = post in the
+> General topic where new members land (recommended), or a thread id to force a
+> specific topic.
 
 ---
 
@@ -300,11 +301,12 @@ separate future ticket via `GROUP_PREFILTER`.)
    ```dotenv
    DFENG_GROUP_ID=-100xxxxxxxxxx
    DFENG_TOPIC_ANNOUNCEMENTS=<Announcements & Events thread_id>
-   DFENG_TOPIC_WELCOME=<BOX Owners Lounge thread_id>
-   DFENG_TOPIC_QUALIFICATION=<007 Owners Club thread_id>
-   DFENG_TOPIC_EVENTS=<VIGO Owners Circle thread_id>
+   DFENG_TOPIC_BOX=<BOX Owners Lounge thread_id>
+   DFENG_TOPIC_007=<007 Owners Club thread_id>
+   DFENG_TOPIC_VIGO=<VIGO Owners Circle thread_id>
    DFENG_TOPIC_GENERAL=1   # built-in General topic = General Community Chat
    DFENG_TOPIC_SUPPORT=<Support & Assistance thread_id>
+   DFENG_WELCOME_TOPIC=0   # where to post welcome; 0 = General (recommended)
    DFENG_ADMIN_IDS=<id1>,<id2>,<id3>
    ```
 

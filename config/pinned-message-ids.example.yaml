@@ -58,17 +58,17 @@ topics:
     topic_remains_closed: true       # verify after pinning: members still cannot post
 
   - name: "BOX Owners Lounge"
-    thread_id: "<THREAD_ID>"         # env: DFENG_TOPIC_WELCOME  (owner lounge #1)
+    thread_id: "<THREAD_ID>"         # env: DFENG_TOPIC_BOX  (owner lounge #1)
     pinned_message_id: "<MESSAGE_ID>"
     source_block: "content/pinned-messages.md#2-box-owners-lounge"
 
   - name: "007 Owners Club"
-    thread_id: "<THREAD_ID>"         # env: DFENG_TOPIC_QUALIFICATION  (owner lounge #2)
+    thread_id: "<THREAD_ID>"         # env: DFENG_TOPIC_007  (owner lounge #2)
     pinned_message_id: "<MESSAGE_ID>"
     source_block: "content/pinned-messages.md#3-007-owners-club"
 
   - name: "VIGO Owners Circle"
-    thread_id: "<THREAD_ID>"         # env: DFENG_TOPIC_EVENTS  (owner lounge #3)
+    thread_id: "<THREAD_ID>"         # env: DFENG_TOPIC_VIGO  (owner lounge #3)
     pinned_message_id: "<MESSAGE_ID>"
     source_block: "content/pinned-messages.md#4-vigo-owners-circle"
 

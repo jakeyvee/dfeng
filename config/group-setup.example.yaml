@@ -11,14 +11,11 @@
 # into the bot's `.env` (see the `env:` key next to each item — that is the
 # matching variable in .env.example / src/dfeng_bot/config.py).
 #
-# NOTE ON TOPIC NAMING: the six topics in VOL-196 have community-facing display
-# names ("BOX Owners Lounge", etc.). The bot's Config (src/dfeng_bot/config.py)
-# predates these names and exposes six generic env slots
-# (DFENG_TOPIC_WELCOME / GENERAL / QUALIFICATION / SUPPORT / EVENTS /
-# ANNOUNCEMENTS). The `env:` field below pins each display-name topic to the
-# env slot the bot will use for it. Do NOT rename the env keys — only the
-# thread_id values change. The mapping is intentional and documented in
-# docs/telegram-setup.md ("Topic → config mapping").
+# NOTE ON TOPIC NAMING: the env keys match the topics directly —
+# DFENG_TOPIC_ANNOUNCEMENTS / BOX / 007 / VIGO / GENERAL / SUPPORT. The `env:`
+# field below names the matching variable for each topic. DFENG_TOPIC_GENERAL is
+# the built-in General topic (id 1). A separate DFENG_WELCOME_TOPIC controls
+# where the welcome message is posted (0 = General). See docs/telegram-setup.md.
 # -----------------------------------------------------------------------------
 
 schema_version: 1
@@ -60,19 +57,19 @@ topics:
     reactions: enabled              # members react but cannot post (Telegram limitation, see runbook)
 
   - name: "BOX Owners Lounge"
-    thread_id: "<THREAD_ID>"        # env: DFENG_TOPIC_WELCOME  (owner lounge #1)
+    thread_id: "<THREAD_ID>"        # env: DFENG_TOPIC_BOX  (owner lounge #1)
     closed: false
     posting: members
     reactions: enabled
 
   - name: "007 Owners Club"
-    thread_id: "<THREAD_ID>"        # env: DFENG_TOPIC_QUALIFICATION  (owner lounge #2)
+    thread_id: "<THREAD_ID>"        # env: DFENG_TOPIC_007  (owner lounge #2)
     closed: false
     posting: members
     reactions: enabled
 
   - name: "VIGO Owners Circle"
-    thread_id: "<THREAD_ID>"        # env: DFENG_TOPIC_EVENTS  (owner lounge #3)
+    thread_id: "<THREAD_ID>"        # env: DFENG_TOPIC_VIGO  (owner lounge #3)
     closed: false
     posting: members
     reactions: enabled
@@ -142,11 +139,12 @@ bot:
 env_mapping:
   DFENG_GROUP_ID: "<GROUP_ID>"
   DFENG_TOPIC_ANNOUNCEMENTS: "<THREAD_ID of 'Announcements & Events'>"
-  DFENG_TOPIC_WELCOME: "<THREAD_ID of 'BOX Owners Lounge'>"
-  DFENG_TOPIC_QUALIFICATION: "<THREAD_ID of '007 Owners Club'>"
-  DFENG_TOPIC_EVENTS: "<THREAD_ID of 'VIGO Owners Circle'>"
+  DFENG_TOPIC_BOX: "<THREAD_ID of 'BOX Owners Lounge'>"
+  DFENG_TOPIC_007: "<THREAD_ID of '007 Owners Club'>"
+  DFENG_TOPIC_VIGO: "<THREAD_ID of 'VIGO Owners Circle'>"
   DFENG_TOPIC_GENERAL: "1"   # built-in General topic = General Community Chat
   DFENG_TOPIC_SUPPORT: "<THREAD_ID of 'Support & Assistance'>"
+  DFENG_WELCOME_TOPIC: "0"   # where to post the welcome message; 0 = General
   DFENG_ADMIN_IDS: "<ID1>,<ID2>,<ID3>"
   # TELEGRAM_BOT_TOKEN stays in .env / secret manager only — never in this file.
 
