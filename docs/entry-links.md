@@ -12,6 +12,40 @@ member in* (the workbook's **"Entry source"** column,
 
 ---
 
+## Two entry modes — pick one
+
+| Mode | Entry point | Onboarding | PII privacy |
+|------|-------------|-----------|-------------|
+| **A. Deep-link DM onboarding (recommended)** | bot deep link `https://t.me/<bot>?start=<source>` | happens in the **private bot chat** BEFORE joining; a single-use group invite is granted on completion | ✅ phone/plate never typed in a public topic |
+| **B. Group invite links** (the rest of this doc) | named `t.me/+...` group invite links | happens **in the group** after joining | ⚠️ phone/plate are typed in General (visible to all) |
+
+### Mode A — deep-link DM onboarding (Option A)
+
+Telegram won't let a bot DM a user who hasn't started it, so the entry point is a
+**bot deep link**, not a group invite link. Flow:
+
+1. QR / Linktree / salesperson link → `https://t.me/<DFENG_BOT_USERNAME>?start=<token>`
+   where token ∈ `showroom | roadshow | event | linktree | salesperson | website`
+   (mapped to the entry source in `handlers/dm_onboarding.py`).
+2. User taps → opens the bot DM → presses **Start** → the bot asks every question
+   **privately** (Owner/Prospect → model → PDPA consent → optional phone/plate).
+3. On completion the bot mints a **single-use** invite link (`member_limit=1`) and
+   DMs it — the user joins already vetted. Unfinished users are never let in.
+
+**Enable it:** set `DFENG_BOT_USERNAME` (e.g. `DongfengSGBot`) and
+`DFENG_FEATURE_DM_ONBOARDING=1` in `.env`, then generate the deep-link QR codes:
+
+```bash
+python scripts/generate_qr.py        # with DFENG_BOT_USERNAME set -> deep-link QR PNGs
+```
+
+In Mode A you do **not** share the group invite links as the public entry; keep
+the group on "Approve New Members" only as a backstop (or rely solely on the
+single-use links). The rest of this runbook (Mode B) covers the group-invite-link
+mechanism for deployments that keep onboarding in-group.
+
+---
+
 ## 0. The six entry sources
 
 | # | Source id (canonical, MUST match `schema.ENTRY_SOURCES`) | Tracked by a named invite link? | Env var |

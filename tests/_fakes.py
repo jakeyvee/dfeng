@@ -82,8 +82,9 @@ class FakeCallbackQuery:
 
 
 class FakeChat:
-    def __init__(self, chat_id: int = -100123):
+    def __init__(self, chat_id: int = -100123, chat_type: str = "supergroup"):
         self.id = chat_id
+        self.type = chat_type
 
 
 class FakeUpdate:

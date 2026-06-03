@@ -163,8 +163,11 @@ async def send_welcome(
         outcome="welcomed",
     )
 
-    # Hand off to the future qualification flow (VOL-204). No-op stub today.
-    await start_qualification(update, context, member)
+    # Hand off to the in-group qualification flow (VOL-204) — UNLESS deep-link DM
+    # onboarding is enabled, in which case members complete every question
+    # privately BEFORE joining (Option A), so a group join must not re-ask.
+    if not config.features.dm_onboarding:
+        await start_qualification(update, context, member)
 
 
 async def start_qualification(
