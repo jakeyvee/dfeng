@@ -229,18 +229,19 @@ def resolve_tag(tag: Optional[str]) -> str:
 
 # --- keyboards ---------------------------------------------------------------
 def _role_keyboard() -> InlineKeyboardMarkup:
+    # No "Skip": classifying as Owner or Prospect is required.
     return InlineKeyboardMarkup(
         [
             [
                 InlineKeyboardButton("Owner", callback_data=f"{CALLBACK_PREFIX}role:owner"),
                 InlineKeyboardButton("Prospect", callback_data=f"{CALLBACK_PREFIX}role:prospect"),
             ],
-            [InlineKeyboardButton("Skip", callback_data=f"{CALLBACK_PREFIX}role:skip")],
         ]
     )
 
 
 def _model_keyboard() -> InlineKeyboardMarkup:
+    # No "Skip": owners must pick their model.
     return InlineKeyboardMarkup(
         [
             [
@@ -248,7 +249,6 @@ def _model_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton("007", callback_data=f"{CALLBACK_PREFIX}model:007"),
                 InlineKeyboardButton("VIGO", callback_data=f"{CALLBACK_PREFIX}model:VIGO"),
             ],
-            [InlineKeyboardButton("Skip", callback_data=f"{CALLBACK_PREFIX}model:skip")],
         ]
     )
 
@@ -460,20 +460,20 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             log_event("qualification_role", update, role="owner", outcome="asked_model")
         elif value == "prospect":
             await _assign_prospect(update, context, path="prospect")
-        else:  # skip / anything else -> default Prospect
-            await _assign_prospect(update, context, path="default_prospect")
+        else:  # no Skip button — re-ask (classification is required)
+            await _ask_role(update, context, prompt=ROLE_RETRY_PROMPT)
         return True
 
     if kind == "model":
         tag = model_to_tag(value)
         if tag is not None:
             await _assign_owner(update, context, tag, path=f"owner->{value.lower()}")
-        else:  # skip / unknown model -> default Prospect
-            await _assign_prospect(update, context, path="default_prospect")
+        else:  # unknown model — re-ask (model selection is required)
+            await _ask_model(update, context, prompt=MODEL_RETRY_PROMPT)
         return True
 
-    # Unknown qual subcommand — consume it (it's ours) but default safely.
-    await _assign_prospect(update, context, path="default_prospect")
+    # Unknown qual subcommand — consume it (it's ours) and re-ask the role.
+    await _ask_role(update, context, prompt=ROLE_RETRY_PROMPT)
     return True
 
 
@@ -511,14 +511,11 @@ async def advance(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
         if role == "prospect":
             await _assign_prospect(update, context, path="prospect")
             return True
-        # unrecognised
-        if _bump_retry(context) > MAX_TEXT_RETRIES:
-            await _assign_prospect(update, context, path="default_prospect")
-        else:
-            await reply_in_thread(
-                update, ROLE_RETRY_PROMPT, context=context, reply_markup=_role_keyboard()
-            )
-            log_event("qualification_retry", update, state=state, outcome="reprompt_role")
+        # unrecognised -> re-ask (classification is required; no skipping)
+        await reply_in_thread(
+            update, ROLE_RETRY_PROMPT, context=context, reply_markup=_role_keyboard()
+        )
+        log_event("qualification_retry", update, state=state, outcome="reprompt_role")
         return True
 
     # STATE_AWAITING_MODEL
@@ -526,13 +523,11 @@ async def advance(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     if tag is not None:
         await _assign_owner(update, context, tag, path=f"owner->{tag.split()[0].lower()}")
         return True
-    if _bump_retry(context) > MAX_TEXT_RETRIES:
-        await _assign_prospect(update, context, path="default_prospect")
-    else:
-        await reply_in_thread(
-            update, MODEL_RETRY_PROMPT, context=context, reply_markup=_model_keyboard()
-        )
-        log_event("qualification_retry", update, state=state, outcome="reprompt_model")
+    # unrecognised -> re-ask (model selection is required; no skipping)
+    await reply_in_thread(
+        update, MODEL_RETRY_PROMPT, context=context, reply_markup=_model_keyboard()
+    )
+    log_event("qualification_retry", update, state=state, outcome="reprompt_model")
     return True
 
 

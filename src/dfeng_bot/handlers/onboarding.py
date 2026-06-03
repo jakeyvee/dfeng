@@ -92,8 +92,21 @@ MAX_FIELD_LEN = 64
 
 # --- copy -------------------------------------------------------------------
 CONSENT_INTRO = (
-    "Optional: you can share a contact number and your vehicle plate so admins "
-    "can reach you and recognise your car. This is entirely optional."
+    "One more optional step — and there are perks 🧡\n"
+    "Share your contact number and car plate and we can:\n"
+    "• invite you to events & exclusive owner perks\n"
+    "• give you faster, more personal ownership support\n"
+    "• recognise your car at meetups & servicing\n\n"
+    "Totally optional — you're already in either way."
+)
+# Same benefits, but for the DM-handoff offer posted in the group.
+PII_BENEFITS_DM = (
+    "One more optional step — and there are perks 🧡\n"
+    "Share your contact number and car plate (privately, just with me) and we can:\n"
+    "• invite you to events & exclusive owner perks\n"
+    "• give you faster, more personal ownership support\n"
+    "• recognise your car at meetups & servicing\n\n"
+    "Tap below to continue in a private chat — or No thanks, you're already in."
 )
 PHONE_PROMPT = (
     "Please type your contact number, or tap Skip.\n"
@@ -343,15 +356,49 @@ async def start_profile_capture(
 
     config = get_config(context)
 
+    # Record the member NOW with the required fields (tag + entry source), so a
+    # classified member is never lost — even if they ignore the optional step or
+    # bail out of the private DM. persist_member is an idempotent upsert keyed on
+    # Telegram ID, so a later phone/plate capture just UPDATES the same row.
+    await _finish_and_persist(update, context, announce=False)
+
     if not config.features.optional_capture:
-        # Capture disabled: persist required fields only (no phone/plate/consent).
-        await _finish_and_persist(update, context, announce=False)
         return
 
+    # DM mode: collect phone/plate PRIVATELY in the bot's 1:1 chat (never typed in
+    # a public topic). We post a benefit-led offer here with a deep-link button;
+    # the actual PDPA notice + capture happen in the DM (start_dm_pii_capture).
+    if config.features.dm_pii_capture and config.bot_username:
+        keyboard = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "📲 Share privately with the bot",
+                        url=f"https://t.me/{config.bot_username}?start=profile",
+                    )
+                ],
+                [InlineKeyboardButton("No thanks", callback_data=f"{PROFILE_PREFIX}decline")],
+            ]
+        )
+        try:
+            await reply_in_thread(
+                update, PII_BENEFITS_DM, context=context, reply_markup=keyboard
+            )
+            log_event("profile_offer_dm", update, outcome="offered")
+        except Exception as exc:  # noqa: BLE001 - never block onboarding on a prompt
+            log_event(
+                "profile_capture_failed",
+                update,
+                level=40,
+                error_type=type(exc).__name__,
+                outcome="prompt_error",
+            )
+        return
+
+    # In-group mode (default): benefit-led intro + the EXACT locked PDPA notice
+    # BEFORE asking for any optional data. policy.PDPA_CONSENT_NOTICE is the single
+    # source of truth — never retyped here.
     try:
-        # Show the EXACT, locked PDPA notice BEFORE asking for any optional data,
-        # then present a clear consent choice. policy.PDPA_CONSENT_NOTICE is the
-        # single source of truth — never retyped here.
         _set_state(context, STATE_AWAITING_CONSENT)
         await reply_in_thread(update, CONSENT_INTRO, context=context)
         await reply_in_thread(
@@ -360,6 +407,7 @@ async def start_profile_capture(
             context=context,
             reply_markup=_consent_keyboard(),
         )
+        log_event("profile_capture_started", update, outcome="asked_consent")
     except Exception as exc:  # noqa: BLE001 - never block onboarding on a prompt
         log_event(
             "profile_capture_failed",
@@ -368,11 +416,40 @@ async def start_profile_capture(
             error_type=type(exc).__name__,
             outcome="prompt_error",
         )
-        # Fall back to persisting required fields only.
-        await _finish_and_persist(update, context, announce=False)
+
+
+async def start_dm_pii_capture(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """Begin phone/plate capture in the bot's PRIVATE chat (DM PII handoff).
+
+    Triggered by ``/start profile`` (the deep-link button in the group offer).
+    Shows the locked PDPA notice, then asks for phone (skippable) -> plate
+    (skippable) -> persists. The member's tag + entry source are already in
+    ``user_data`` (per-user, shared across chats) from the in-group qualification,
+    so the existing capture/persist path completes the same row.
+    """
+
+    config = get_config(context)
+    if not (config.features.optional_capture and config.features.dm_pii_capture):
+        await reply_in_thread(update, "Nothing to do here — you're all set 🧡", context=context)
         return
 
-    log_event("profile_capture_started", update, outcome="asked_consent")
+    try:
+        await reply_in_thread(update, policy.PDPA_CONSENT_NOTICE, context=context)
+        _set_state(context, STATE_AWAITING_PHONE)
+        await reply_in_thread(
+            update, PHONE_PROMPT, context=context, reply_markup=_phone_keyboard()
+        )
+        log_event("profile_capture_started", update, outcome="dm_asked_phone")
+    except Exception as exc:  # noqa: BLE001 - never block on a prompt
+        log_event(
+            "profile_capture_failed",
+            update,
+            level=40,
+            error_type=type(exc).__name__,
+            outcome="prompt_error",
+        )
 
 
 async def cmd_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -432,10 +509,15 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             await _finish_and_persist(update, context, announce=True)
         return True
 
-    # profile:phone:skip / profile:plate:skip
+    # profile:decline (DM offer) / profile:phone:skip / profile:plate:skip
     if data.startswith(PROFILE_PREFIX):
         value = data[len(PROFILE_PREFIX):]
-        if value == "phone:skip":
+        if value == "decline":
+            # DM offer declined — required fields were already persisted at the
+            # start of capture, so just acknowledge.
+            log_event("profile_offer_declined", update, outcome="declined")
+            await reply_in_thread(update, DECLINED_DONE, context=context)
+        elif value == "phone:skip":
             await _advance_to_plate(update, context)
         elif value == "plate:skip":
             await _finish_and_persist(update, context, announce=True)
@@ -488,10 +570,12 @@ async def advance(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     text = message.text if message is not None else None
     value = sanitize_optional(text)
 
-    # Privacy (Issue 2): the user typed phone/plate into a public topic. Remove
-    # their message immediately so the PII isn't left visible to everyone. Only
-    # when they actually typed something (Skip is a button, not text).
-    if message is not None and (message.text or "").strip():
+    # Privacy (Issue 2): in a PUBLIC topic, the user's typed phone/plate is visible
+    # to everyone — delete it right after reading. In a private DM there's nothing
+    # to hide (and deleting the user's own DM message is odd), so skip it there.
+    chat = update.effective_chat
+    in_private = getattr(chat, "type", None) == "private"
+    if not in_private and message is not None and (message.text or "").strip():
         await _delete_typed_pii(update, context)
 
     if state == STATE_AWAITING_PHONE:

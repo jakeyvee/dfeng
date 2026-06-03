@@ -29,6 +29,7 @@ def make_config(
     rate_limits: RateLimits | None = None,
     spam: SpamSettings | None = None,
     link_restrictions: LinkRestrictions | None = None,
+    bot_username: str = "",
 ) -> Config:
     """Construct a Config with sensible test defaults; override as needed."""
 
@@ -71,4 +72,5 @@ def make_config(
         webhook=WebhookConfig(url="", listen="0.0.0.0", port=8443, secret_token=""),
         log_level="INFO",
         log_format="kv",
+        bot_username=bot_username,
     )

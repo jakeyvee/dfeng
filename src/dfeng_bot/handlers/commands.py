@@ -23,7 +23,20 @@ from .qualification import cmd_qualify
 
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Acknowledge /start. Welcome content proper lives in VOL-203."""
+    """Acknowledge /start, or begin DM PII capture for the ``profile`` deep link.
+
+    ``/start profile`` in a PRIVATE chat (from the "Share privately" button in the
+    group offer) hands off to the private phone/plate capture; everything else
+    just acknowledges.
+    """
+    args = context.args or []
+    chat_type = getattr(update.effective_chat, "type", None)
+    if chat_type == "private" and args and args[0].strip().lower() == "profile":
+        from . import onboarding
+
+        await onboarding.start_dm_pii_capture(update, context)
+        return
+
     log_event("cmd_start", update, outcome="ack")
     await reply_in_thread(
         update,

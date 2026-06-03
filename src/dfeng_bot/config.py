@@ -302,6 +302,9 @@ class FeatureFlags:
     flood_control: bool
     link_restrictions: bool
     support_redirect: bool
+    # Capture optional phone/plate in the bot's PRIVATE chat (DM) instead of the
+    # public topic. Requires Config.bot_username. Default OFF (in-group capture).
+    dm_pii_capture: bool = False
 
 
 @dataclass(frozen=True)
@@ -344,6 +347,9 @@ class Config:
     # Logging
     log_level: str
     log_format: str  # "kv" | "json"
+    # Bot @username (no @) — used to build the deep-link button that opens the
+    # private chat for DM PII capture (t.me/<bot>?start=profile). Empty when unset.
+    bot_username: str = ""
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -417,6 +423,7 @@ class Config:
                 flood_control=_get_bool("DFENG_FEATURE_FLOOD_CONTROL", False),
                 link_restrictions=_get_bool("DFENG_FEATURE_LINK_RESTRICTIONS", False),
                 support_redirect=_get_bool("DFENG_FEATURE_SUPPORT_REDIRECT", True),
+                dm_pii_capture=_get_bool("DFENG_FEATURE_DM_PII_CAPTURE", False),
             ),
             run_mode=run_mode,
             webhook=WebhookConfig(
@@ -427,6 +434,7 @@ class Config:
             ),
             log_level=_get_str("DFENG_LOG_LEVEL", "INFO").upper(),
             log_format=log_format,
+            bot_username=_get_str("DFENG_BOT_USERNAME", "").lstrip("@").strip(),
         )
 
     @staticmethod
@@ -483,6 +491,7 @@ class Config:
                 "flood_control": self.features.flood_control,
                 "link_restrictions": self.features.link_restrictions,
                 "support_redirect": self.features.support_redirect,
+                "dm_pii_capture": self.features.dm_pii_capture,
             },
             "log_level": self.log_level,
             "log_format": self.log_format,
