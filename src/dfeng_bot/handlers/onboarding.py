@@ -95,8 +95,14 @@ CONSENT_INTRO = (
     "Optional: you can share a contact number and your vehicle plate so admins "
     "can reach you and recognise your car. This is entirely optional."
 )
-PHONE_PROMPT = "Please type your contact number, or tap Skip."
-PLATE_PROMPT = "Please type your vehicle plate, or tap Skip."
+PHONE_PROMPT = (
+    "Please type your contact number, or tap Skip.\n"
+    "(I'll delete your message right after so it stays private 🧡)"
+)
+PLATE_PROMPT = (
+    "Please type your vehicle plate, or tap Skip.\n"
+    "(I'll remove your message right after for privacy 🧡)"
+)
 DECLINED_DONE = "No problem — you're all set. 🚗"
 CAPTURE_DONE = "Thanks! You're all set. 🚗"
 
@@ -441,6 +447,30 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 # --- text fallback (called from messages.handle_message) ---------------------
+async def _delete_typed_pii(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Best-effort remove the user's just-typed phone/plate message from the topic.
+
+    Capture happens in a public topic, so the value the user types is briefly
+    visible to everyone. Deleting it immediately keeps PII out of the public
+    timeline (Issue 2). Requires the bot's *Delete Messages* admin right; never
+    raises into the flow, and the value itself is never logged (PII).
+    """
+
+    message = update.effective_message
+    if message is None:
+        return
+    try:
+        await message.delete()
+    except Exception as exc:  # noqa: BLE001 - privacy cleanup must never block
+        log_event(
+            "profile_pii_delete_failed",
+            update,
+            level=30,
+            error_type=type(exc).__name__,
+            outcome="delete_error",
+        )
+
+
 async def advance(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     """Advance an in-progress capture using a free-text answer. Returns True if consumed.
 
@@ -457,6 +487,12 @@ async def advance(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     message = update.effective_message
     text = message.text if message is not None else None
     value = sanitize_optional(text)
+
+    # Privacy (Issue 2): the user typed phone/plate into a public topic. Remove
+    # their message immediately so the PII isn't left visible to everyone. Only
+    # when they actually typed something (Skip is a button, not text).
+    if message is not None and (message.text or "").strip():
+        await _delete_typed_pii(update, context)
 
     if state == STATE_AWAITING_PHONE:
         if value and context.user_data is not None:
