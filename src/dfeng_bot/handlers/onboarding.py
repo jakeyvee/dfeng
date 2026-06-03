@@ -494,23 +494,6 @@ async def _advance_to_plate(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 
 # --- finish + persist --------------------------------------------------------
-async def _maybe_grant_access(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    """Grant group access when onboarding ran via the deep-link DM flow (Option A).
-
-    No-op unless ``user_data`` carries the DM-onboarding flag. Delegates to
-    :func:`dm_onboarding.grant_access` (single-use invite link). Local import
-    keeps the dependency one-directional and avoids circular import at load time.
-    """
-
-    from . import dm_onboarding
-
-    if not (context.user_data or {}).get(dm_onboarding.DM_ONBOARDING_FLAG):
-        return
-    await dm_onboarding.grant_access(update, context)
-
-
 async def _finish_and_persist(
     update: Update, context: ContextTypes.DEFAULT_TYPE, *, announce: bool
 ) -> None:
@@ -561,12 +544,6 @@ async def _finish_and_persist(
                 error_type=type(exc).__name__,
                 outcome="send_error",
             )
-
-    # Deep-link DM onboarding (Option A): the member finished every question in
-    # the private chat, so now grant entry — mint a single-use invite link and DM
-    # it. No-op unless this flow ran via the DM deep link. Independent of the
-    # Sheets write below (entry is never gated on persistence).
-    await _maybe_grant_access(update, context)
 
     if telegram_id is None:
         log_event("member_persist_skipped", update, outcome="no_user")

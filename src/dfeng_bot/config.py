@@ -302,9 +302,6 @@ class FeatureFlags:
     flood_control: bool
     link_restrictions: bool
     support_redirect: bool
-    # Deep-link DM onboarding (Option A): entry via t.me/<bot>?start=<source>;
-    # questions answered privately; single-use invite link granted on completion.
-    dm_onboarding: bool = False
 
 
 @dataclass(frozen=True)
@@ -420,7 +417,6 @@ class Config:
                 flood_control=_get_bool("DFENG_FEATURE_FLOOD_CONTROL", False),
                 link_restrictions=_get_bool("DFENG_FEATURE_LINK_RESTRICTIONS", False),
                 support_redirect=_get_bool("DFENG_FEATURE_SUPPORT_REDIRECT", True),
-                dm_onboarding=_get_bool("DFENG_FEATURE_DM_ONBOARDING", False),
             ),
             run_mode=run_mode,
             webhook=WebhookConfig(
@@ -487,7 +483,6 @@ class Config:
                 "flood_control": self.features.flood_control,
                 "link_restrictions": self.features.link_restrictions,
                 "support_redirect": self.features.support_redirect,
-                "dm_onboarding": self.features.dm_onboarding,
             },
             "log_level": self.log_level,
             "log_format": self.log_format,

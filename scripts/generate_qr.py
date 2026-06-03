@@ -62,39 +62,7 @@ def main(argv: list[str] | None = None) -> int:
         default=DEFAULT_OUT_DIR,
         help=f"Output directory for PNGs (default: {DEFAULT_OUT_DIR}).",
     )
-    parser.add_argument(
-        "--invite-links",
-        action="store_true",
-        help="Force legacy group-invite-link QR mode instead of bot deep links.",
-    )
     args = parser.parse_args(argv)
-
-    import os
-
-    # Deep-link mode (recommended, Option A): when DFENG_BOT_USERNAME is set, the
-    # QR encodes a BOT deep link t.me/<bot>?start=<source>. The user lands in the
-    # bot DM, onboards privately, and is granted a single-use group invite on
-    # completion (see docs/entry-links.md, handlers/dm_onboarding.py). These deep
-    # links are PUBLIC (meant for signage), so printing them is fine.
-    bot_username = os.environ.get("DFENG_BOT_USERNAME", "").lstrip("@").strip()
-    if bot_username and not args.invite_links:
-        try:
-            import qrcode
-        except ImportError:
-            print('ERROR: install qrcode:  pip install "qrcode[pil]"', file=sys.stderr)
-            return 2
-        out_dir = args.out
-        out_dir.mkdir(parents=True, exist_ok=True)
-        generated = 0
-        for token in ("showroom", "roadshow", "event", "linktree"):
-            url = f"https://t.me/{bot_username}?start={token}"
-            qrcode.make(url).save(out_dir / f"{token}.png")
-            print(f"OK    {token} -> {out_dir / (token + '.png')}   ({url})")
-            generated += 1
-        print(f"Done: {generated} deep-link QR code(s) written to {out_dir}.")
-        print("Put the matching link behind your Linktree button too:")
-        print(f"  https://t.me/{bot_username}?start=linktree")
-        return 0
 
     # Lazy import so the module is import-clean without the optional dep.
     try:

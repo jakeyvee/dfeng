@@ -23,17 +23,7 @@ from .qualification import cmd_qualify
 
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Acknowledge /start, or kick off deep-link DM onboarding when enabled.
-
-    When ``DFENG_FEATURE_DM_ONBOARDING`` is on and this is a private ``/start``
-    (typically from a ``t.me/<bot>?start=<source>`` deep link), hand off to the
-    private onboarding flow; otherwise just acknowledge.
-    """
-    from . import dm_onboarding
-
-    if await dm_onboarding.maybe_start_dm_onboarding(update, context):
-        return
-
+    """Acknowledge /start. Welcome content proper lives in VOL-203."""
     log_event("cmd_start", update, outcome="ack")
     await reply_in_thread(
         update,
