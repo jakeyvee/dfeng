@@ -78,7 +78,7 @@ from telegram.ext import ContextTypes
 from ..logging_setup import log_event
 from .. import metrics
 from ..services.schema import TAGS
-from .base import get_config, reply_in_thread
+from .base import get_config, reply_in_thread, unmute_member
 
 # --- Canonical tags (imported, never hardcoded divergently) -----------------
 # Pull the four canonical strings from the schema so this module and the
@@ -122,6 +122,11 @@ MAX_TEXT_RETRIES = 1
 
 # --- copy --------------------------------------------------------------------
 ROLE_PROMPT = "One quick question — are you a Dongfeng owner, or a prospect?"
+# Used when the require-qualification gate is on (member muted until they answer).
+ROLE_PROMPT_GATED = (
+    "Welcome! 🧡 One quick question to unlock chat — are you a Dongfeng owner, or "
+    "a prospect? Just tap below."
+)
 MODEL_PROMPT = "Nice! Which model do you drive? (BOX / 007 / VIGO)"
 ROLE_RETRY_PROMPT = (
     "No worries — just tap a button below: are you an Owner or a Prospect?"
@@ -288,6 +293,7 @@ async def _assign_prospect(
 ) -> str:
     """Assign the Prospect tag, log, optionally confirm. Returns the tag."""
     _store_tag(context, TAG_PROSPECT)
+    await _lift_qualification_gate(update, context)
     if announce:
         try:
             await reply_in_thread(update, PROSPECT_DONE, context=context)
@@ -310,6 +316,7 @@ async def _assign_owner(
 ) -> str:
     """Assign a specific owner tag, log, confirm. Returns the tag."""
     _store_tag(context, tag)
+    await _lift_qualification_gate(update, context)
     try:
         await reply_in_thread(update, OWNER_DONE, context=context)
     except Exception as exc:  # noqa: BLE001 - confirmation must never block
@@ -324,6 +331,25 @@ async def _assign_owner(
     metrics.bump(context, "qualification_complete")
     await _handoff_to_onboarding(update, context)
     return tag
+
+
+async def _lift_qualification_gate(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """Un-mute a member once they've classified (require-qualification gate).
+
+    No-op unless ``DFENG_FEATURE_REQUIRE_QUALIFICATION`` is on. Restores the
+    member's ability to post now that they've answered. Best-effort; never blocks.
+    """
+
+    config = get_config(context)
+    if not config.features.require_qualification:
+        return
+    user = update.effective_user
+    if user is None:
+        return
+    await unmute_member(context, config.group_id, user.id)
+    log_event("qualification_gate", update, member_id=user.id, outcome="unmuted")
 
 
 async def _handoff_to_onboarding(
@@ -387,8 +413,9 @@ async def start_qualification(
         )
         return
 
+    prompt = ROLE_PROMPT_GATED if config.features.require_qualification else ROLE_PROMPT
     try:
-        await _ask_role(update, context, prompt=ROLE_PROMPT)
+        await _ask_role(update, context, prompt=prompt)
     except Exception as exc:  # noqa: BLE001 - never block entry on a failed prompt
         log_event(
             "qualification_failed",

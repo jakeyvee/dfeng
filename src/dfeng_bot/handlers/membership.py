@@ -99,6 +99,27 @@ async def on_new_member(
         entry_source=entry_source,
     )
 
+    # Require-qualification gate: mute the new member until they classify
+    # (Owner/Prospect -> model); auto-unmuted on completion in qualification.py.
+    # Button taps still work while muted, so they can answer with a tap. Admins
+    # are never muted. Fail-open (best-effort) so a missing right never blocks a
+    # join. Only meaningful when there are questions to answer (welcome + qual on).
+    if (
+        config.features.require_qualification
+        and config.features.qualification
+        and not config.is_admin(member.id)
+    ):
+        from .base import mute_member
+
+        muted = await mute_member(context, config.group_id, member.id)
+        log_event(
+            "qualification_gate",
+            update,
+            member_id=member.id,
+            member_username=member.username,
+            outcome="muted" if muted else "mute_failed",
+        )
+
     # VOL-203 welcome onboarding (no-op when DFENG_FEATURE_WELCOME is off).
     await send_welcome(update, context, member)
     return entry_source

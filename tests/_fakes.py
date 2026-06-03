@@ -140,6 +140,10 @@ class FakeBot:
         self.calls.append(("restrict_chat_member", kwargs))
         return True
 
+    async def get_chat(self, chat_id):
+        self.calls.append(("get_chat", {"chat_id": chat_id}))
+        return type("Chat", (), {"permissions": None})()
+
     async def delete_message(self, **kwargs):
         self.calls.append(("delete_message", kwargs))
         return True

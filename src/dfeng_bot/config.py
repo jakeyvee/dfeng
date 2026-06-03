@@ -305,6 +305,9 @@ class FeatureFlags:
     # Capture optional phone/plate in the bot's PRIVATE chat (DM) instead of the
     # public topic. Requires Config.bot_username. Default OFF (in-group capture).
     dm_pii_capture: bool = False
+    # Require qualification: mute new members on join until they classify
+    # (Owner/Prospect -> model); auto-unmute on completion. Default OFF.
+    require_qualification: bool = False
 
 
 @dataclass(frozen=True)
@@ -424,6 +427,7 @@ class Config:
                 link_restrictions=_get_bool("DFENG_FEATURE_LINK_RESTRICTIONS", False),
                 support_redirect=_get_bool("DFENG_FEATURE_SUPPORT_REDIRECT", True),
                 dm_pii_capture=_get_bool("DFENG_FEATURE_DM_PII_CAPTURE", False),
+                require_qualification=_get_bool("DFENG_FEATURE_REQUIRE_QUALIFICATION", False),
             ),
             run_mode=run_mode,
             webhook=WebhookConfig(
@@ -492,6 +496,7 @@ class Config:
                 "link_restrictions": self.features.link_restrictions,
                 "support_redirect": self.features.support_redirect,
                 "dm_pii_capture": self.features.dm_pii_capture,
+                "require_qualification": self.features.require_qualification,
             },
             "log_level": self.log_level,
             "log_format": self.log_format,
