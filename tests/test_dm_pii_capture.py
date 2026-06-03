@@ -24,10 +24,10 @@ def _labels(markup):
 
 class TestNoSkip(unittest.TestCase):
     def test_role_keyboard_has_no_skip(self):
-        self.assertEqual(set(_labels(qualification._role_keyboard())), {"Owner", "Prospect"})
+        self.assertEqual(set(_labels(qualification._role_keyboard(1))), {"Owner", "Prospect"})
 
     def test_model_keyboard_has_no_skip(self):
-        self.assertEqual(set(_labels(qualification._model_keyboard())), {"BOX", "007", "VIGO"})
+        self.assertEqual(set(_labels(qualification._model_keyboard(1))), {"BOX", "007", "VIGO"})
 
 
 def _group_update(uid=7):

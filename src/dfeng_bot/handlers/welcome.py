@@ -45,7 +45,7 @@ from telegram import Update, User
 from telegram.ext import ContextTypes
 
 from ..logging_setup import log_event
-from .base import get_config, reply_in_thread
+from .base import address, get_config, reply_in_thread
 
 # Verbatim welcome copy (VOL-203). Stored as a constant so other tickets
 # (e.g. VOL-201) can reference the exact wording. Do not edit without updating
@@ -125,6 +125,10 @@ async def send_welcome(
         )
         return
 
+    # @-tag the joiner so it's clear who the bot is greeting (multiple members
+    # may join around the same time and all land in General).
+    text = f"{address(member)} 👋\n\n{WELCOME_MESSAGE}"
+
     welcome_topic = config.welcome_topic
     try:
         if welcome_topic and config.group_id:
@@ -132,13 +136,13 @@ async def send_welcome(
             # observed in General, so we send directly with the welcome thread id.
             await context.bot.send_message(
                 chat_id=config.group_id,
-                text=WELCOME_MESSAGE,
+                text=text,
                 message_thread_id=welcome_topic,
             )
             posted_thread = welcome_topic
         else:
             # Fall back to replying where the join was observed (General topic).
-            await reply_in_thread(update, WELCOME_MESSAGE, context=context)
+            await reply_in_thread(update, text, context=context)
             posted_thread = getattr(
                 getattr(update, "effective_message", None), "message_thread_id", None
             )

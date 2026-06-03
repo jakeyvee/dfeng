@@ -33,6 +33,21 @@ def is_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     return get_config(context).is_admin(user.id if user else None)
 
 
+def address(user) -> str:
+    """A plain-text way to address/ping a specific user in a shared topic.
+
+    Uses ``@username`` when available (Telegram auto-links it, so it pings the
+    user), otherwise their first name. Plain text — no parse_mode needed, so it's
+    safe to concatenate with copy that contains ``&`` / ``<`` / ``>``.
+    """
+    if user is None:
+        return "there"
+    uname = getattr(user, "username", None)
+    if uname:
+        return f"@{uname}"
+    return getattr(user, "first_name", None) or "there"
+
+
 def thread_id_of(update: Update) -> Optional[int]:
     """Return the forum topic / thread id of the triggering message, if any."""
     message = update.effective_message

@@ -64,7 +64,7 @@ from telegram.ext import ContextTypes
 from .. import policy
 from ..logging_setup import log_event
 from ..services import schema
-from .base import get_config, reply_in_thread
+from .base import address, get_config, reply_in_thread
 
 # --- callback-data namespaces (must not collide with qualification's "qual:") -
 CONSENT_PREFIX = "pdpa:"
@@ -121,28 +121,30 @@ CAPTURE_DONE = "Thanks! You're all set. 🚗"
 
 
 # --- keyboards --------------------------------------------------------------
-def _consent_keyboard() -> InlineKeyboardMarkup:
+# ``uid`` is embedded in callback data so only the user the prompt was posted for
+# can act on these buttons (taps from other users are ignored in handle_callback).
+def _consent_keyboard(uid: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [
                 InlineKeyboardButton(
-                    "Share phone & plate", callback_data=f"{CONSENT_PREFIX}consent:yes"
+                    "Share phone & plate", callback_data=f"{CONSENT_PREFIX}consent:yes:{uid}"
                 ),
-                InlineKeyboardButton("Skip", callback_data=f"{CONSENT_PREFIX}consent:no"),
+                InlineKeyboardButton("Skip", callback_data=f"{CONSENT_PREFIX}consent:no:{uid}"),
             ]
         ]
     )
 
 
-def _phone_keyboard() -> InlineKeyboardMarkup:
+def _phone_keyboard(uid: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
-        [[InlineKeyboardButton("Skip", callback_data=f"{PROFILE_PREFIX}phone:skip")]]
+        [[InlineKeyboardButton("Skip", callback_data=f"{PROFILE_PREFIX}phone:skip:{uid}")]]
     )
 
 
-def _plate_keyboard() -> InlineKeyboardMarkup:
+def _plate_keyboard(uid: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
-        [[InlineKeyboardButton("Skip", callback_data=f"{PROFILE_PREFIX}plate:skip")]]
+        [[InlineKeyboardButton("Skip", callback_data=f"{PROFILE_PREFIX}plate:skip:{uid}")]]
     )
 
 
@@ -365,6 +367,9 @@ async def start_profile_capture(
     if not config.features.optional_capture:
         return
 
+    user = update.effective_user
+    uid = getattr(user, "id", 0)
+
     # DM mode: collect phone/plate PRIVATELY in the bot's 1:1 chat (never typed in
     # a public topic). We post a benefit-led offer here with a deep-link button;
     # the actual PDPA notice + capture happen in the DM (start_dm_pii_capture).
@@ -377,12 +382,13 @@ async def start_profile_capture(
                         url=f"https://t.me/{config.bot_username}?start=profile",
                     )
                 ],
-                [InlineKeyboardButton("No thanks", callback_data=f"{PROFILE_PREFIX}decline")],
+                # uid-locked so only this member can decline (others ignored).
+                [InlineKeyboardButton("No thanks", callback_data=f"{PROFILE_PREFIX}decline:{uid}")],
             ]
         )
         try:
             await reply_in_thread(
-                update, PII_BENEFITS_DM, context=context, reply_markup=keyboard
+                update, f"{address(user)} {PII_BENEFITS_DM}", context=context, reply_markup=keyboard
             )
             log_event("profile_offer_dm", update, outcome="offered")
         except Exception as exc:  # noqa: BLE001 - never block onboarding on a prompt
@@ -400,12 +406,12 @@ async def start_profile_capture(
     # source of truth — never retyped here.
     try:
         _set_state(context, STATE_AWAITING_CONSENT)
-        await reply_in_thread(update, CONSENT_INTRO, context=context)
+        await reply_in_thread(update, f"{address(user)} {CONSENT_INTRO}", context=context)
         await reply_in_thread(
             update,
             policy.PDPA_CONSENT_NOTICE,
             context=context,
-            reply_markup=_consent_keyboard(),
+            reply_markup=_consent_keyboard(uid),
         )
         log_event("profile_capture_started", update, outcome="asked_consent")
     except Exception as exc:  # noqa: BLE001 - never block onboarding on a prompt
@@ -439,7 +445,10 @@ async def start_dm_pii_capture(
         await reply_in_thread(update, policy.PDPA_CONSENT_NOTICE, context=context)
         _set_state(context, STATE_AWAITING_PHONE)
         await reply_in_thread(
-            update, PHONE_PROMPT, context=context, reply_markup=_phone_keyboard()
+            update,
+            PHONE_PROMPT,
+            context=context,
+            reply_markup=_phone_keyboard(getattr(update.effective_user, "id", 0)),
         )
         log_event("profile_capture_started", update, outcome="dm_asked_phone")
     except Exception as exc:  # noqa: BLE001 - never block on a prompt
@@ -495,13 +504,32 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     data = query.data
 
+    # Buttons carry a trailing ":<uid>" so only the user the prompt was posted for
+    # may act on them. If someone else taps, silently ignore (spinner already
+    # dismissed). ``core`` is the data without that uid for the value compares.
+    tapper = query.from_user
+    core = data
+    tail = data.rsplit(":", 1)
+    if len(tail) == 2 and tail[1].isdigit():
+        core = tail[0]
+        if tapper is None or str(tapper.id) != tail[1]:
+            log_event(
+                "profile_callback_ignored",
+                update,
+                tapper_id=getattr(tapper, "id", None),
+                target=tail[1],
+                outcome="not_target",
+            )
+            return True
+    uid = getattr(tapper, "id", 0)
+
     # pdpa:consent:yes / pdpa:consent:no
-    if data.startswith(CONSENT_PREFIX):
-        value = data[len(CONSENT_PREFIX):]
+    if core.startswith(CONSENT_PREFIX):
+        value = core[len(CONSENT_PREFIX):]
         if value == "consent:yes":
             _set_state(context, STATE_AWAITING_PHONE)
             await reply_in_thread(
-                update, PHONE_PROMPT, context=context, reply_markup=_phone_keyboard()
+                update, PHONE_PROMPT, context=context, reply_markup=_phone_keyboard(uid)
             )
             log_event("profile_consent", update, consent=True, outcome="asked_phone")
         else:  # consent:no / anything else -> decline, persist required only
@@ -510,8 +538,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return True
 
     # profile:decline (DM offer) / profile:phone:skip / profile:plate:skip
-    if data.startswith(PROFILE_PREFIX):
-        value = data[len(PROFILE_PREFIX):]
+    if core.startswith(PROFILE_PREFIX):
+        value = core[len(PROFILE_PREFIX):]
         if value == "decline":
             # DM offer declined — required fields were already persisted at the
             # start of capture, so just acknowledge.
@@ -609,7 +637,10 @@ async def advance(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
 async def _advance_to_plate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     _set_state(context, STATE_AWAITING_PLATE)
     await reply_in_thread(
-        update, PLATE_PROMPT, context=context, reply_markup=_plate_keyboard()
+        update,
+        PLATE_PROMPT,
+        context=context,
+        reply_markup=_plate_keyboard(getattr(update.effective_user, "id", 0)),
     )
 
 

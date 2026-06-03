@@ -78,7 +78,7 @@ from telegram.ext import ContextTypes
 from ..logging_setup import log_event
 from .. import metrics
 from ..services.schema import TAGS
-from .base import get_config, reply_in_thread, unmute_member
+from .base import address, get_config, reply_in_thread, unmute_member
 
 # --- Canonical tags (imported, never hardcoded divergently) -----------------
 # Pull the four canonical strings from the schema so this module and the
@@ -233,26 +233,27 @@ def resolve_tag(tag: Optional[str]) -> str:
 
 
 # --- keyboards ---------------------------------------------------------------
-def _role_keyboard() -> InlineKeyboardMarkup:
-    # No "Skip": classifying as Owner or Prospect is required.
+def _role_keyboard(uid: int) -> InlineKeyboardMarkup:
+    # No "Skip": classifying as Owner or Prospect is required. ``uid`` is embedded
+    # so only the user the question was posted for may answer (others ignored).
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("Owner", callback_data=f"{CALLBACK_PREFIX}role:owner"),
-                InlineKeyboardButton("Prospect", callback_data=f"{CALLBACK_PREFIX}role:prospect"),
+                InlineKeyboardButton("Owner", callback_data=f"{CALLBACK_PREFIX}role:owner:{uid}"),
+                InlineKeyboardButton("Prospect", callback_data=f"{CALLBACK_PREFIX}role:prospect:{uid}"),
             ],
         ]
     )
 
 
-def _model_keyboard() -> InlineKeyboardMarkup:
-    # No "Skip": owners must pick their model.
+def _model_keyboard(uid: int) -> InlineKeyboardMarkup:
+    # No "Skip": owners must pick their model. ``uid`` locks the buttons to them.
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("BOX", callback_data=f"{CALLBACK_PREFIX}model:BOX"),
-                InlineKeyboardButton("007", callback_data=f"{CALLBACK_PREFIX}model:007"),
-                InlineKeyboardButton("VIGO", callback_data=f"{CALLBACK_PREFIX}model:VIGO"),
+                InlineKeyboardButton("BOX", callback_data=f"{CALLBACK_PREFIX}model:BOX:{uid}"),
+                InlineKeyboardButton("007", callback_data=f"{CALLBACK_PREFIX}model:007:{uid}"),
+                InlineKeyboardButton("VIGO", callback_data=f"{CALLBACK_PREFIX}model:VIGO:{uid}"),
             ],
         ]
     )
@@ -379,14 +380,24 @@ async def _handoff_to_onboarding(
         )
 
 
-async def _ask_role(update: Update, context: ContextTypes.DEFAULT_TYPE, *, prompt: str) -> None:
+async def _ask_role(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, *, user, prompt: str
+) -> None:
     _set_state(context, STATE_AWAITING_ROLE)
-    await reply_in_thread(update, prompt, context=context, reply_markup=_role_keyboard())
+    text = f"{address(user)} {prompt}" if user is not None else prompt
+    await reply_in_thread(
+        update, text, context=context, reply_markup=_role_keyboard(getattr(user, "id", 0))
+    )
 
 
-async def _ask_model(update: Update, context: ContextTypes.DEFAULT_TYPE, *, prompt: str) -> None:
+async def _ask_model(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, *, user, prompt: str
+) -> None:
     _set_state(context, STATE_AWAITING_MODEL)
-    await reply_in_thread(update, prompt, context=context, reply_markup=_model_keyboard())
+    text = f"{address(user)} {prompt}" if user is not None else prompt
+    await reply_in_thread(
+        update, text, context=context, reply_markup=_model_keyboard(getattr(user, "id", 0))
+    )
 
 
 # --- entry points ------------------------------------------------------------
@@ -415,7 +426,7 @@ async def start_qualification(
 
     prompt = ROLE_PROMPT_GATED if config.features.require_qualification else ROLE_PROMPT
     try:
-        await _ask_role(update, context, prompt=prompt)
+        await _ask_role(update, context, user=member, prompt=prompt)
     except Exception as exc:  # noqa: BLE001 - never block entry on a failed prompt
         log_event(
             "qualification_failed",
@@ -452,7 +463,7 @@ async def cmd_qualify(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     _set_state(context, None)
-    await _ask_role(update, context, prompt=ROLE_PROMPT)
+    await _ask_role(update, context, user=update.effective_user, prompt=ROLE_PROMPT)
     log_event("qualification_started", update, outcome="manual_retry")
     metrics.bump(context, "qualification_started")
 
@@ -475,20 +486,34 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     if query is None or not owns_callback(query.data):
         return False
 
-    # data forms: qual:role:owner / qual:role:prospect / qual:role:skip
-    #             qual:model:BOX / qual:model:007 / qual:model:VIGO / qual:model:skip
-    parts = query.data[len(CALLBACK_PREFIX):].split(":", 1)
+    # data forms: qual:role:owner:<uid> / qual:role:prospect:<uid>
+    #             qual:model:BOX:<uid> / qual:model:007:<uid> / qual:model:VIGO:<uid>
+    parts = query.data[len(CALLBACK_PREFIX):].split(":")
     kind = parts[0]
     value = parts[1] if len(parts) > 1 else ""
+    target = parts[2] if len(parts) > 2 else None
+
+    # Lock: only the user the question was posted FOR may answer. If someone else
+    # taps the buttons, silently ignore (the spinner was already dismissed).
+    tapper = query.from_user
+    if target is not None and (tapper is None or str(tapper.id) != target):
+        log_event(
+            "qualification_ignored",
+            update,
+            tapper_id=getattr(tapper, "id", None),
+            target=target,
+            outcome="not_target",
+        )
+        return True
 
     if kind == "role":
         if value == "owner":
-            await _ask_model(update, context, prompt=MODEL_PROMPT)
+            await _ask_model(update, context, user=tapper, prompt=MODEL_PROMPT)
             log_event("qualification_role", update, role="owner", outcome="asked_model")
         elif value == "prospect":
             await _assign_prospect(update, context, path="prospect")
         else:  # no Skip button — re-ask (classification is required)
-            await _ask_role(update, context, prompt=ROLE_RETRY_PROMPT)
+            await _ask_role(update, context, user=tapper, prompt=ROLE_RETRY_PROMPT)
         return True
 
     if kind == "model":
@@ -496,11 +521,11 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         if tag is not None:
             await _assign_owner(update, context, tag, path=f"owner->{value.lower()}")
         else:  # unknown model — re-ask (model selection is required)
-            await _ask_model(update, context, prompt=MODEL_RETRY_PROMPT)
+            await _ask_model(update, context, user=tapper, prompt=MODEL_RETRY_PROMPT)
         return True
 
     # Unknown qual subcommand — consume it (it's ours) and re-ask the role.
-    await _ask_role(update, context, prompt=ROLE_RETRY_PROMPT)
+    await _ask_role(update, context, user=tapper, prompt=ROLE_RETRY_PROMPT)
     return True
 
 
@@ -529,19 +554,19 @@ async def advance(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     message = update.effective_message
     text = message.text if message is not None else None
 
+    user = update.effective_user
+
     if state == STATE_AWAITING_ROLE:
         role = answer_to_role(text)
         if role == "owner":
-            await _ask_model(update, context, prompt=MODEL_PROMPT)
+            await _ask_model(update, context, user=user, prompt=MODEL_PROMPT)
             log_event("qualification_role", update, role="owner", outcome="asked_model")
             return True
         if role == "prospect":
             await _assign_prospect(update, context, path="prospect")
             return True
         # unrecognised -> re-ask (classification is required; no skipping)
-        await reply_in_thread(
-            update, ROLE_RETRY_PROMPT, context=context, reply_markup=_role_keyboard()
-        )
+        await _ask_role(update, context, user=user, prompt=ROLE_RETRY_PROMPT)
         log_event("qualification_retry", update, state=state, outcome="reprompt_role")
         return True
 
@@ -551,9 +576,7 @@ async def advance(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
         await _assign_owner(update, context, tag, path=f"owner->{tag.split()[0].lower()}")
         return True
     # unrecognised -> re-ask (model selection is required; no skipping)
-    await reply_in_thread(
-        update, MODEL_RETRY_PROMPT, context=context, reply_markup=_model_keyboard()
-    )
+    await _ask_model(update, context, user=user, prompt=MODEL_RETRY_PROMPT)
     log_event("qualification_retry", update, state=state, outcome="reprompt_model")
     return True
 
