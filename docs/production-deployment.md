@@ -222,6 +222,36 @@ On a clean start the logs show `action=startup` with the redacted
 
 ---
 
+## 6b. Deploy on Render (GitHub-connected, easiest)
+
+The repo ships a **`render.yaml` Blueprint** that runs the bot as a **Background
+Worker** (long-polling; no web port). One-time setup:
+
+1. Push the repo to GitHub (already done).
+2. In Render: **New + → Blueprint** → connect the `jakeyvee/dfeng` repo → Render
+   reads `render.yaml` and creates the `dfeng-bot` worker.
+3. Render prompts for the `sync: false` env vars — paste them from your `.env`:
+   `TELEGRAM_BOT_TOKEN`, `DFENG_GROUP_ID`, the six `DFENG_TOPIC_*`,
+   `DFENG_ADMIN_IDS`, `DFENG_BOT_USERNAME`, the four `DFENG_INVITE_LINK_*`, and
+   `DFENG_SHEETS_WORKBOOK_ID`. (Feature flags + tunables are pre-set in the file.)
+4. **Google credentials** → add a Render **Secret File** named
+   `service-account.json` (paste the JSON). It mounts at
+   `/etc/secrets/service-account.json`, which is exactly what
+   `GOOGLE_APPLICATION_CREDENTIALS` points to in the Blueprint.
+5. **Create** → Render builds (`pip install -r requirements.txt`) and starts
+   (`python -m dfeng_bot.main`). Watch **Logs** for `starting_polling` →
+   `Application started`. Every push to `main` auto-redeploys.
+
+Notes:
+- **Background Workers require a paid instance** (e.g. Starter ~$7/mo) — the free
+  tier is web-only and sleeps, which would stop a polling bot.
+- **One poller only:** stop any local/other instance once Render is live, or the
+  second one gets Telegram **409 Conflict**.
+- In-memory state (write queue, trust store, dedupe) resets on each redeploy —
+  accepted v1 tradeoff (rows are idempotent; affected IDs are logged).
+
+---
+
 ## 7. Logs — where they go & how to access
 
 The bot writes **structured logs to stdout/stderr** (`DFENG_LOG_FORMAT=kv`

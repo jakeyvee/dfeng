@@ -1,0 +1,123 @@
+# Render Blueprint — Dongfeng Experience Community bot
+# =============================================================================
+# Deploys the bot as a Background Worker (long-polling; no inbound HTTP port).
+# On Render: New + -> Blueprint -> connect this GitHub repo -> Render reads this
+# file, creates the worker, and prompts for the secret values (sync: false).
+# Auto-deploys on every push to `main`.
+#
+# IMPORTANT: a Background Worker needs a PAID instance (e.g. Starter). The free
+# tier is web-only and sleeps on inactivity, which would stop a polling bot.
+# Only ONE poller may run at a time (a second one gets Telegram 409 Conflict) —
+# stop any local instance once this is live.
+# -----------------------------------------------------------------------------
+services:
+  - type: worker
+    name: dfeng-bot
+    runtime: python
+    plan: starter            # background workers are not on the free tier
+    region: singapore        # closest to the community
+    branch: main
+    autoDeploy: true
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python -m dfeng_bot.main"
+    envVars:
+      # --- runtime ---
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: PYTHONPATH         # the package lives under src/
+        value: "src"
+      - key: DFENG_RUN_MODE
+        value: "polling"
+
+      # --- SECRETS / per-deployment values: set these in the Render dashboard ---
+      # (sync: false -> not stored in git; Render prompts you for each.)
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: DFENG_GROUP_ID
+        sync: false
+      - key: DFENG_TOPIC_ANNOUNCEMENTS
+        sync: false
+      - key: DFENG_TOPIC_BOX
+        sync: false
+      - key: DFENG_TOPIC_007
+        sync: false
+      - key: DFENG_TOPIC_VIGO
+        sync: false
+      - key: DFENG_TOPIC_GENERAL
+        sync: false
+      - key: DFENG_TOPIC_SUPPORT
+        sync: false
+      - key: DFENG_WELCOME_TOPIC
+        value: "0"
+      - key: DFENG_ADMIN_IDS
+        sync: false
+      - key: DFENG_BOT_USERNAME
+        sync: false
+      - key: DFENG_INVITE_LINK_SHOWROOM
+        sync: false
+      - key: DFENG_INVITE_LINK_ROADSHOW
+        sync: false
+      - key: DFENG_INVITE_LINK_EVENT
+        sync: false
+      - key: DFENG_INVITE_LINK_LINKTREE
+        sync: false
+
+      # --- Google Sheets ---
+      - key: DFENG_SHEETS_WORKBOOK_ID
+        sync: false
+      - key: DFENG_SHEETS_TAB_NAME
+        value: "Members"
+      # Upload the JSON as a Render "Secret File" named service-account.json; it
+      # mounts at /etc/secrets/<name>. Then this path is correct.
+      - key: GOOGLE_APPLICATION_CREDENTIALS
+        value: "/etc/secrets/service-account.json"
+
+      # --- feature flags (launch config) ---
+      - key: DFENG_FEATURE_WELCOME
+        value: "1"
+      - key: DFENG_FEATURE_QUALIFICATION
+        value: "1"
+      - key: DFENG_FEATURE_OPTIONAL_CAPTURE
+        value: "1"
+      - key: DFENG_FEATURE_SHEETS
+        value: "1"
+      - key: DFENG_FEATURE_ANTISPAM
+        value: "1"
+      - key: DFENG_FEATURE_FLOOD_CONTROL
+        value: "1"
+      - key: DFENG_FEATURE_LINK_RESTRICTIONS
+        value: "1"
+      - key: DFENG_FEATURE_SUPPORT_REDIRECT
+        value: "1"
+      - key: DFENG_FEATURE_DM_PII_CAPTURE
+        value: "1"
+      - key: DFENG_FEATURE_REQUIRE_QUALIFICATION
+        value: "1"
+
+      # --- moderation / queue tunables (defaults; adjust as needed) ---
+      - key: DFENG_TRUST_THRESHOLD
+        value: "3"
+      - key: DFENG_LINK_TRUST_MIN_AGE_SECONDS
+        value: "86400"
+      - key: DFENG_LINK_TRUST_MIN_MESSAGES
+        value: "3"
+      - key: DFENG_RATE_LIMIT_MESSAGES
+        value: "8"
+      - key: DFENG_RATE_LIMIT_WINDOW_SECONDS
+        value: "10"
+      - key: DFENG_RATE_LIMIT_ACTION
+        value: "mute"
+      - key: DFENG_SPAM_BLOCK_LINKS
+        value: "1"
+      - key: DFENG_SPAM_ALLOWED_DOMAINS
+        value: "dongfeng.com"
+      - key: DFENG_WRITE_QUEUE_ENABLED
+        value: "1"
+
+      # --- logging / metrics ---
+      - key: DFENG_LOG_LEVEL
+        value: "INFO"
+      - key: DFENG_LOG_FORMAT
+        value: "json"
+      - key: DFENG_METRICS_ACTIVITY
+        value: "1"
