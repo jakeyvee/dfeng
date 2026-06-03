@@ -97,17 +97,18 @@ def _load_spam_rules_yaml() -> dict:
     """Load ``config/spam-rules.yaml`` if present and PyYAML is installed.
 
     Returns the parsed mapping, or ``{}`` when the file is absent or PyYAML is
-    not installed. PyYAML is lazily imported here so the module stays import-clean
-    and adds no hard dependency (the committed file is ``spam-rules.example.yaml``;
-    the real ``spam-rules.yaml`` is gitignored and optional). Env vars remain the
-    primary config path; YAML is a convenience for managing long rule lists.
+    not installed. The committed ``config/spam-rules.yaml`` is the editable
+    anti-spam rule list (pre-loaded with the defaults); its lists take precedence
+    over the ``DFENG_SPAM_*`` env vars and the built-in ``DEFAULT_*`` lists.
+    PyYAML is lazily imported here so the module stays import-clean; it is listed
+    in requirements.txt. Point the loader elsewhere with ``DFENG_SPAM_RULES_FILE``.
     """
 
     path = os.environ.get("DFENG_SPAM_RULES_FILE", "config/spam-rules.yaml")
     if not path or not os.path.exists(path):
         return {}
     try:
-        import yaml  # lazy: optional dependency, not in requirements.txt
+        import yaml  # lazy import; PyYAML is in requirements.txt
     except Exception:  # pragma: no cover - PyYAML simply not installed
         return {}
     try:

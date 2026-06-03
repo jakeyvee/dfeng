@@ -1,0 +1,122 @@
+# =============================================================================
+# Dongfeng Experience Community — anti-spam rule lists  (EDIT THIS FILE)
+# =============================================================================
+# This is the live, editable anti-spam config. It is COMMITTED and PRE-LOADED
+# with the bot's full default lists, so you can simply add to or trim them here —
+# no env vars, no code changes. The bot loads this file on startup.
+#
+#   • Add a keyword/domain  -> add a "- value" line under the right list.
+#   • Remove one            -> delete its line.
+#   • RESTART the bot after editing for changes to take effect.
+#
+# How it loads: the lists below REPLACE the built-in defaults (this file already
+# contains them, so nothing is lost). A whole list that is omitted falls back to
+# the built-in default. Point the loader elsewhere with DFENG_SPAM_RULES_FILE.
+# Requires PyYAML (in requirements.txt).
+#
+# Matching semantics (see src/dfeng_bot/handlers/antispam.py):
+#   • keywords: case-insensitive. Plain alphanumeric tokens use word boundaries
+#     ("pump" won't match "pumpkin"); phrases with punctuation ("whatsapp +",
+#     "telegram.me/") match as case-insensitive substrings.
+#   • domains: matched against a URL's host. allowed_domains exempts a link;
+#     blocked_domains is a SUBSTRING match on the host; blocked_tlds match the
+#     host ending; shortener_domains flag link-shortener hosts.
+#
+# FALSE-POSITIVE CAUTION: anti-spam DELETES messages. Keep entries SPECIFIC to
+# scam/ad phrasing. Avoid generic words ("free", "buy", "deal") that ordinary
+# owners use — a normal message like "Loving my BOX on weekend trips!" must
+# never match. Admins are exempt by default (DFENG_SPAM_EXEMPT_ADMINS=1).
+# -----------------------------------------------------------------------------
+
+# Crypto promotions / scam phrasing.
+crypto_keywords:
+  - pump
+  - airdrop
+  - free crypto
+  - 100x
+  - 1000x
+  - usdt giveaway
+  - crypto giveaway
+  - pre-sale
+  - presale
+  - pre sale
+  - to the moon
+  - guaranteed returns
+  - double your
+  - send eth
+  - send btc
+  - elon
+  - shiba
+  - memecoin
+  - web3 project
+  - mint now
+  - whitelist spot
+  # --- add your own below ---
+
+# External advertisements / promo unrelated to Dongfeng.
+ad_keywords:
+  - "telegram.me/"
+  - join my channel
+  - join my group
+  - dm me
+  - pm me
+  - "whatsapp +"
+  - whatsapp me
+  - promo code
+  - click the link in my bio
+  - link in bio
+  - make money fast
+  - work from home
+  - "earn $"
+  - subscribe to my
+  # --- add your own below ---
+
+# URL shortener hosts (almost always mask scam/ad destinations).
+shortener_domains:
+  - bit.ly
+  - tinyurl.com
+  - t.co
+  - goo.gl
+  - ow.ly
+  - is.gd
+  - buff.ly
+  - rebrand.ly
+  - cutt.ly
+  - shorturl.at
+  - rb.gy
+  # --- add your own below ---
+
+# Crypto/airdrop scam domain fragments (SUBSTRING match on the URL host).
+blocked_domains:
+  - airdrop
+  - free-crypto
+  - "claim-"
+  - "-giveaway"
+  - "metamask-"
+  - wallet-connect
+  # --- add your own below ---
+
+# Scam-favoured TLD suffixes (matched on the host ending).
+blocked_tlds:
+  - ".xyz"
+  - ".top"
+  - ".click"
+  - ".gq"
+  - ".tk"
+  - ".work"
+  - ".loan"
+  # --- add your own below ---
+
+# Domains ALWAYS allowed even when link-blocking is on (community/official).
+allowed_domains:
+  - dongfeng.com
+  # --- add your own trusted domains below ---
+
+# Repetition: N identical/near-identical messages by one user within the window.
+repeat_count: 3
+repeat_window_seconds: 60
+
+# Escalation (optional). 0 = delete + log only. Set > 0 to temporarily mute a
+# user after this many removed messages in one process lifetime.
+restrict_after: 0
+restrict_seconds: 3600

@@ -16,3 +16,8 @@ python-dotenv>=1.0,<2.0
 # QR code generation for entry-source invite links (VOL-202). Used only by
 # scripts/generate_qr.py (lazy-imported there), not by the bot runtime.
 qrcode[pil]>=7.4,<9.0
+
+# Reads config/spam-rules.yaml (the editable anti-spam rule lists, VOL-208) and
+# config/group-setup.yaml. Lazy-imported in config.py; required for those files
+# to take effect.
+PyYAML>=6.0,<7.0

@@ -15,10 +15,8 @@ config/group-setup.yml
 # Only the *.example template is committed — see config/pinned-message-ids.example.yaml.
 config/pinned-message-ids.yaml
 config/pinned-message-ids.yml
-# Tuned anti-spam rule lists — VOL-208. Only the *.example template is committed;
-# the live config/spam-rules.yaml (if used) stays local.
-config/spam-rules.yaml
-config/spam-rules.yml
+# Note: config/spam-rules.yaml is COMMITTED (it's the editable anti-spam rule
+# list, pre-loaded with the defaults) — see the file header.
 *.json
 !**/package.json
 !**/tsconfig.json
