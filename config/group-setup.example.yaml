@@ -56,25 +56,51 @@ topics:
     posting: admins_only
     reactions: enabled              # members react but cannot post (Telegram limitation, see runbook)
 
-  - name: "BOX Owners Lounge"
+  # --- Content / broadcast channels (closed: admins post, members react) ------
+  - name: "Experience Dongfeng"     # brand films, news, EV education, Green Plan
+    thread_id: "<THREAD_ID>"        # not bound to a bot env slot (no member posts)
+    closed: true
+    posting: admins_only
+    reactions: enabled
+
+  - name: "Experience the Drive"    # onboarding, test drives, brochures, specs
+    thread_id: "<THREAD_ID>"
+    closed: true
+    posting: admins_only
+    reactions: enabled
+
+  - name: "Experience the Journey"  # testimonials, FAQ, software updates, after-sales
+    thread_id: "<THREAD_ID>"
+    closed: true
+    posting: admins_only
+    reactions: enabled
+
+  # --- Community channels (open) ----------------------------------------------
+  - name: "Experience the Community"  # events, shared stories, community culture
+    thread_id: "<THREAD_ID>"          # not bound to a bot env slot
+    closed: false
+    posting: members
+    reactions: enabled
+
+  - name: "BOX - #EveryoneCanOwnABOX"   # renamed from "BOX Owners Lounge"
     thread_id: "<THREAD_ID>"        # env: DFENG_TOPIC_BOX  (owner lounge #1)
     closed: false
     posting: members
     reactions: enabled
 
-  - name: "007 Owners Club"
+  - name: "007 - #BeYourOwnAgent007"    # renamed from "007 Owners Club"
     thread_id: "<THREAD_ID>"        # env: DFENG_TOPIC_007  (owner lounge #2)
     closed: false
     posting: members
     reactions: enabled
 
-  - name: "VIGO Owners Circle"
+  - name: "VIGO - #VIGOWhereYouGo"      # renamed from "VIGO Owners Circle"
     thread_id: "<THREAD_ID>"        # env: DFENG_TOPIC_VIGO  (owner lounge #3)
     closed: false
     posting: members
     reactions: enabled
 
-  - name: "General Community Chat"
+  - name: "General Chat"
     builtin_general: true           # NOT created — this IS Telegram's built-in General topic
     thread_id: 1                    # env: DFENG_TOPIC_GENERAL  (built-in General = 1)
     closed: false
@@ -82,7 +108,7 @@ topics:
     reactions: enabled
 
   - name: "Support & Assistance"
-    thread_id: "<THREAD_ID>"        # env: DFENG_TOPIC_SUPPORT
+    thread_id: "<THREAD_ID>"        # env: DFENG_TOPIC_SUPPORT (open; owners-only is by convention only)
     closed: false
     posting: members
     reactions: enabled

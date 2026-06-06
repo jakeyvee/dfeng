@@ -51,13 +51,15 @@ from .base import address, get_config, reply_in_thread
 # (e.g. VOL-201) can reference the exact wording. Do not edit without updating
 # the ticket — acceptance criteria assert all six topics and this wording.
 WELCOME_MESSAGE = (
-    "Welcome to Dongfeng Experience Singapore 🚗 — Start here: "
-    "📢 Announcements & Events / "
-    "💬 General Community Chat / "
-    "🚗 BOX Owners Lounge / "
-    "🕶 007 Owners Club / "
-    "🏕 VIGO Owners Circle / "
-    "🛠 Need support? Head to Support & Assistance"
+    "Welcome to Dongfeng Experience Singapore 🧡 — here's where to go:\n"
+    "• General Chat — open chat for everyone\n"
+    "• BOX - #EveryoneCanOwnABOX / 007 - #BeYourOwnAgent007 / "
+    "VIGO - #VIGOWhereYouGo — your model lounges\n"
+    "• Support & Assistance — service, charging, warranty & technical help\n"
+    "• Announcements & Events — community news & event invites\n"
+    "• Experience the Community — events & shared stories\n"
+    "• Experience Dongfeng / the Drive / the Journey — brand, product & "
+    "ownership content"
 )
 
 # In-memory dedupe window. If the same telegram_id is seen again within this

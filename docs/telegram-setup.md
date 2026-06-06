@@ -79,24 +79,37 @@ lock it down:
 
 ---
 
-## 4. Create the five topics — EXACT names, in order
+## 4. Create the topics — EXACT names
 
-> **General Community Chat is NOT created here** — this deployment uses the
-> built-in **General** topic (§3) as the General Community Chat (`thread_id 1`,
-> `DFENG_TOPIC_GENERAL=1`). Create only the five topics below; together with the
-> built-in General they form the six community spaces.
+> **General Chat is NOT created here** — this deployment uses the built-in
+> **General** topic (§3) as the General Chat. Create the nine topics below;
+> together with the built-in General that's the 10-topic layout.
+>
+> **Topic names carry no emoji** (brand decision). "Closed" = admin-only posting
+> (members read + react) via the closed-topic mechanism in §8.
 
 Create each topic via the topics list → **＋ / Create topic** (Desktop:
-right panel → **Create Topic**). Use these **exact** names and this **order**:
+right panel → **Create Topic**). Use these **exact** names:
 
-1. `Announcements & Events`
-2. `BOX Owners Lounge`
-3. `007 Owners Club`
-4. `VIGO Owners Circle`
-5. `Support & Assistance`
+| Topic name | Posting |
+|------------|---------|
+| `Announcements & Events`        | **closed** (admin-only) |
+| `Experience Dongfeng`           | **closed** (admin-only) — brand films, news, EV education |
+| `Experience the Drive`          | **closed** (admin-only) — onboarding, brochures, specs |
+| `Experience the Journey`        | **closed** (admin-only) — testimonials, FAQ, after-sales |
+| `Experience the Community`      | open — events, shared stories |
+| `BOX - #EveryoneCanOwnABOX`     | open — model lounge |
+| `007 - #BeYourOwnAgent007`      | open — model lounge |
+| `VIGO - #VIGOWhereYouGo`        | open — model lounge |
+| `Support & Assistance`          | open — service/charging/warranty (owners-only is by convention; Telegram can't enforce a per-tag lock) |
 
-> Tip: names must match **character-for-character** (including the `&` and the
-> leading `007`). Copy-paste them from this list to avoid typos.
+> The four **closed** content/announcement channels are broadcast-only: only
+> admins post, everyone else reads + reacts. Close them per §8.
+>
+> Tip: names must match **character-for-character**. Copy-paste to avoid typos.
+> The model lounges and the four `Experience*` topics were created/renamed via
+> the Bot API (`createForumTopic` / `editForumTopic`); the bot holds *Manage
+> Topics*, so this can be (re)done programmatically.
 
 ### Capture each topic's thread_id
 
